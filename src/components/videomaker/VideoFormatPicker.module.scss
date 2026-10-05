@@ -1,0 +1,84 @@
+@use '../../styles/variables' as *;
+
+.section {
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+}
+
+.sectionTitle {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  background: $color-surface-hover;
+  border-bottom: 1px solid $color-border;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-text;
+  text-align: left;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 8%);
+  }
+
+  &[data-selected='true'] {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 14%);
+  }
+}
+
+.optionFrame {
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid $color-border;
+  background: $color-bg;
+
+  &[data-format='youtube'] {
+    width: 40px;
+    height: 22px;
+  }
+
+  &[data-format='tiktok'] {
+    width: 22px;
+    height: 40px;
+  }
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.optionLabel {
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.optionMeta {
+  font-size: 12px;
+  color: $color-text-muted;
+  line-height: 1.5;
+}

@@ -1,0 +1,198 @@
+@use '../../styles/variables' as *;
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: #fff;
+  line-height: 1.5;
+  font-size: 3.06cqw;
+  text-shadow: 0 0.13cqh 0.43cqh rgb(0 0 0 / 45%);
+}
+
+.topBar {
+  position: absolute;
+  top: 1.02cqh;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3.8cqw;
+  opacity: 0.62;
+  font-size: 3.57cqw;
+  font-weight: 600;
+}
+
+.topTab {
+  padding-bottom: 4px;
+  opacity: 0.75;
+
+  &[data-active='true'] {
+    opacity: 1;
+    border-bottom: 2px solid #fff;
+  }
+}
+
+.rightRail {
+  position: absolute;
+  right: 1.7cqw;
+  bottom: 1.02cqh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.87cqh;
+  opacity: 0.68;
+}
+
+.avatarStack {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.avatar {
+  display: block;
+  width: 8.5cqw;
+  height: 8.5cqw;
+  border-radius: 50%;
+  border: 0.38cqw solid #fff;
+  background: linear-gradient(145deg, #5a6a8a, #2a3148);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.followBadge {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  width: 3.8cqw;
+  height: 3.8cqw;
+  border-radius: 50%;
+  background: #fe2c55;
+  color: #fff;
+  font-size: 3cqw;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.actionIcon {
+  width: 6cqw;
+  height: 6cqw;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(0 1px 3px rgb(0 0 0 / 35%));
+
+  &[data-icon='like'] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3E%3C/svg%3E");
+  }
+
+  &[data-icon='comment'] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z'/%3E%3C/svg%3E");
+  }
+
+  &[data-icon='bookmark'] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z'/%3E%3C/svg%3E");
+  }
+
+  &[data-icon='share'] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z'/%3E%3C/svg%3E");
+  }
+}
+
+.actionCount {
+  font-size: 2.7cqw;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  max-width: 10.2cqw;
+  word-break: break-word;
+}
+
+.disc {
+  width: 7.2cqw;
+  height: 7.2cqw;
+  margin-top: 0.68cqh;
+  border-radius: 50%;
+  border: 1.28cqw solid #1a1d27;
+  outline: 1px solid rgb(255 255 255 / 55%);
+  background: linear-gradient(135deg, #3d4660, #12151f);
+  animation: tiktokDiscSpin 4s linear infinite;
+}
+
+@keyframes tiktokDiscSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bottomMeta {
+  position: absolute;
+  left: 2.1cqw;
+  right: 11.9cqw;
+  bottom: 1.28cqh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.51cqh;
+  opacity: 0.7;
+  text-align: left;
+}
+
+.handle {
+  margin: 0;
+  font-size: 3.57cqw;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.caption {
+  margin: 0;
+  font-size: 3.23cqw;
+  font-weight: 500;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sound {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 1.28cqw;
+  font-size: 3cqw;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.soundIcon {
+  flex-shrink: 0;
+  width: 3.06cqw;
+  height: 3.06cqw;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fff'%3E%3Cpath d='M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.soundText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

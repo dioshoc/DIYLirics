@@ -1,0 +1,239 @@
+@use '../../styles/variables' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+
+.scrollArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 140px;
+}
+
+.topRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 240px;
+}
+
+.linesColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  flex: 1;
+}
+
+.linesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.linesTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.linesList {
+  flex: 1;
+  max-height: min(40vh, 480px);
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+}
+
+.lineItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid $color-border;
+  line-height: 1.5;
+  cursor: pointer;
+  scroll-margin-block: 8px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &[data-variant='end-marker'] .lineText {
+    color: $color-text-muted;
+    font-style: italic;
+  }
+
+  &[data-active='true'] {
+    background: rgb(108 140 255 / 12%);
+  }
+
+  &[data-synced='false'] .timeValue {
+    color: $color-text-muted;
+  }
+}
+
+.timeCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.timeValue {
+  min-width: 4.25rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  line-height: 1.5;
+}
+
+.lineText {
+  word-break: break-word;
+  line-height: 1.5;
+  align-self: center;
+}
+
+.bottomDock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: $color-surface;
+  border-top: 1px solid $color-border;
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
+}
+
+.syncBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid $color-border;
+}
+
+.syncMeta {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.syncIndex {
+  color: $color-text-muted;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.syncLinePreview {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.syncActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.syncButton {
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: $radius-md;
+  background: $color-surface-hover;
+  color: $color-text;
+  font-size: 24px;
+  line-height: 1;
+
+  &:hover {
+    background: $color-accent;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.markButton {
+  min-width: 120px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: $radius-md;
+  background: $color-success;
+  color: #0f1117;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.5;
+
+  &:hover {
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.syncHint {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  color: $color-text-muted;
+  line-height: 1.5;
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.jsonBlock {
+  margin-top: 8px;
+}
+
+.jsonPre {
+  max-height: 200px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: $radius-md;
+  background: #0a0c10;
+  border: 1px solid $color-border;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

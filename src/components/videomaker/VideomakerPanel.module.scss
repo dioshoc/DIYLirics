@@ -1,0 +1,387 @@
+@use '../../styles/variables' as *;
+
+.root {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  gap: 0;
+  position: relative;
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 72px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  border-right: 1px solid $color-border;
+  background: rgb(0 0 0 / 12%);
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  container-type: size;
+  align-items: center;
+  justify-content: center;
+  background: #0a0c10;
+}
+
+.previewFrameWrap {
+  position: relative;
+  max-height: 100cqh;
+  container-type: size;
+
+  &[data-format='youtube'] {
+    aspect-ratio: 16 / 9;
+    width: min(100cqw, calc(100cqh * 16 / 9));
+  }
+
+  &[data-format='tiktok'] {
+    aspect-ratio: 9 / 16;
+    width: min(100cqw, calc(100cqh * 9 / 16));
+  }
+}
+
+.videoExportFrame {
+  width: 100%;
+  height: 100%;
+}
+
+.previewBox {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border-radius: $radius-md;
+  background: linear-gradient(145deg, #1f2433, #12151f);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  line-height: 1.5;
+  overflow: hidden;
+
+  &[data-layout='cover-split'] {
+    padding: 0;
+    display: block;
+  }
+
+  --lyric-font-scale: 1;
+
+  &[data-lyric-size='small'] {
+    --lyric-font-scale: 0.8;
+  }
+
+  &[data-lyric-size='large'] {
+    --lyric-font-scale: 1.2;
+  }
+}
+
+.coverSplitBg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.coverSplitBgImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.05);
+  filter: blur(max(10px, 1cqmin));
+}
+
+.coverSplitBgScrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 58%);
+}
+
+.coverSplitForeground {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 6cqh;
+  height: 100%;
+  padding: 8% 7%;
+  box-sizing: border-box;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'] .coverSplitForeground {
+  flex-direction: row;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .coverSplitForeground {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  height: 100%;
+  padding: 22% 10% 0;
+  gap: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-cover-position='bottom']
+  .coverSplitForeground {
+  justify-content: flex-end;
+  padding: 0 10% 24%;
+}
+
+.coverSplitLyric {
+  flex: 1;
+  margin: 0;
+  font-family: var(--lyric-font-family, system-ui, sans-serif);
+  font-size: calc(min(4.25cqw, 8.5cqh) * var(--lyric-font-scale));
+  font-weight: 700;
+  line-height: 1.45;
+  color: #fff;
+  text-shadow: 0 0.17cqh 0.85cqh rgb(0 0 0 / 65%);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.coverSplitCoverColumn {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1.4cqh;
+  max-width: min(32.3cqw, 61.2cqh);
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .coverSplitCoverColumn {
+  max-width: min(61.2cqw, 35.7cqh);
+}
+
+.coverSplitTrackInfo {
+  width: 100%;
+  margin: 0;
+  font-family: var(--lyric-font-family, system-ui, sans-serif);
+  font-size: calc(2.35cqh * var(--lyric-font-scale));
+  font-weight: 600;
+  line-height: 1.5;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0.1cqh 0.65cqh rgb(0 0 0 / 65%);
+  word-break: break-word;
+}
+
+.coverSplitCard {
+  flex-shrink: 0;
+  width: 100%;
+  object-fit: cover;
+  border-radius: min(2cqw, 2cqh);
+  box-shadow: 0 1cqh 3cqh rgb(0 0 0 / 50%);
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'] .coverSplitCard {
+  width: min(32.3cqw, 61.2cqh);
+  aspect-ratio: 1;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .coverSplitCard {
+  width: min(61.2cqw, 35.7cqh);
+  aspect-ratio: 1;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-cover-side='right']
+  .coverSplitLyric {
+  order: 0;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-cover-side='right']
+  .coverSplitCoverColumn {
+  order: 1;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-cover-side='left']
+  .coverSplitLyric {
+  order: 1;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-cover-side='left']
+  .coverSplitCoverColumn {
+  order: 0;
+}
+
+.previewBgMedia {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+}
+
+.previewBgFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: $color-text-muted;
+  line-height: 1.5;
+  background: rgb(0 0 0 / 35%);
+}
+
+.previewLyricOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  padding: 10% 8%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .previewLyricOverlay {
+  z-index: 2;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-cover-position='top']
+  .previewLyricOverlay {
+  padding: calc(16cqh + min(61.2cqw, 35.7cqh) + 1.75cqh) 10% 26%;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-cover-position='bottom']
+  .previewLyricOverlay {
+  padding: 14% 10% calc(18cqh + min(61.2cqw, 35.7cqh) + 1.75cqh);
+}
+
+.previewBox[data-format='tiktok'][data-layout='full'] .previewLyricOverlay {
+  padding: 14% 10% 26%;
+}
+
+.previewBox[data-format='tiktok'][data-layout='full'][data-lyric-v='bottom']
+  .previewLyricOverlay {
+  padding-bottom: 30%;
+}
+
+.previewBox[data-layout='full'][data-lyric-v='top'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-v='top']
+  .previewLyricOverlay {
+  align-items: flex-start;
+}
+
+.previewBox[data-layout='full'][data-lyric-v='center'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-v='center']
+  .previewLyricOverlay {
+  align-items: center;
+}
+
+.previewBox[data-layout='full'][data-lyric-v='bottom'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-v='bottom']
+  .previewLyricOverlay {
+  align-items: flex-end;
+}
+
+.previewBox[data-layout='full'][data-lyric-h='left'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-h='left']
+  .previewLyricOverlay {
+  justify-content: flex-start;
+}
+
+.previewBox[data-layout='full'][data-lyric-h='center'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-h='center']
+  .previewLyricOverlay {
+  justify-content: center;
+}
+
+.previewBox[data-layout='full'][data-lyric-h='right'] .previewLyricOverlay,
+.previewBox[data-format='tiktok'][data-layout='cover-split'][data-lyric-h='right']
+  .previewLyricOverlay {
+  justify-content: flex-end;
+}
+
+.previewLyric {
+  margin: 0;
+  max-width: 88%;
+  font-family: var(--lyric-font-family, system-ui, sans-serif);
+  font-size: calc(min(4.7cqw, 7.65cqh) * var(--lyric-font-scale));
+  font-weight: 600;
+  line-height: 1.5;
+  color: #fff;
+  text-shadow: 0 0.17cqh 0.85cqh rgb(0 0 0 / 65%);
+}
+
+.previewBox[data-format='tiktok'] .previewLyric {
+  font-size: calc(3.6cqh * var(--lyric-font-scale));
+  font-weight: 700;
+  line-height: 1.45;
+  max-width: 92%;
+}
+
+.previewBox[data-lyric-h='left'] .coverSplitLyric,
+.previewBox[data-lyric-h='left'] .previewLyric {
+  text-align: left;
+}
+
+.previewBox[data-lyric-h='center'] .coverSplitLyric,
+.previewBox[data-lyric-h='center'] .previewLyric {
+  text-align: center;
+}
+
+.previewBox[data-lyric-h='right'] .coverSplitLyric,
+.previewBox[data-lyric-h='right'] .previewLyric {
+  text-align: right;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-lyric-v='top']
+  .coverSplitLyric {
+  align-self: flex-start;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-lyric-v='center']
+  .coverSplitLyric {
+  align-self: center;
+}
+
+.previewBox[data-format='youtube'][data-layout='cover-split'][data-lyric-v='bottom']
+  .coverSplitLyric {
+  align-self: flex-end;
+}
+
+.bottomDock {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  background: $color-surface;
+  border-top: 1px solid $color-border;
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
+}
+
+.noAudioHint {
+  margin: 0;
+  padding: 14px 20px;
+  color: $color-text-muted;
+  line-height: 1.5;
+  text-align: center;
+}

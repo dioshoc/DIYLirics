@@ -1,0 +1,53 @@
+@use '../../styles/variables' as *;
+
+.root {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 2px;
+  border: 1px solid $color-border;
+  border-radius: 6px;
+  background: $color-surface-hover;
+  color: $color-text;
+  line-height: 1;
+
+  &:hover:not(:disabled) {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 18%);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.chevrons {
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.12em;
+
+  &[data-direction='left'] {
+    flex-direction: row;
+  }
+
+  &[data-direction='right'] {
+    flex-direction: row;
+  }
+}
+
+.chevron {
+  display: block;
+}

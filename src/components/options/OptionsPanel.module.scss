@@ -1,0 +1,43 @@
+@use '../../styles/variables' as *;
+
+.coverRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.coverPreview {
+  width: 160px;
+  height: 160px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-md;
+  border: 1px dashed $color-border;
+  background: $color-surface;
+  overflow: hidden;
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverPlaceholder {
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: $color-text-muted;
+  line-height: 1.5;
+}
+
+.coverField {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

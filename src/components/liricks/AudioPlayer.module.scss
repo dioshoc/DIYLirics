@@ -1,0 +1,61 @@
+@use '../../styles/variables' as *;
+
+.player {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  border: 1px solid $color-border;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.playButton {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: $color-accent;
+  color: #fff;
+  line-height: 1;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $color-accent-hover;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.seek {
+  flex: 1;
+  accent-color: $color-accent;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  color: $color-text-muted;
+  min-width: 120px;
+  text-align: right;
+  line-height: 1.5;
+}
+
+.hiddenAudio {
+  display: none;
+}
+
+.playerEmbedded {
+  padding: 10px 20px 14px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}

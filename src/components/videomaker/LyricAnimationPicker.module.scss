@@ -1,0 +1,77 @@
+@use '../../styles/variables' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+  max-height: 240px;
+  padding: 2px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 68px;
+  padding: 8px 6px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: rgb(0 0 0 / 18%);
+  color: $color-text;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: $color-accent;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-accent;
+    outline-offset: 1px;
+  }
+
+  &[data-selected='true'] {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 18%);
+  }
+
+  span:first-child {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+  }
+}
+
+.tile .noneIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: unset;
+  font-weight: normal;
+  color: $color-text-muted;
+
+  svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.tile[data-selected='true'] .noneIcon {
+  color: $color-accent;
+}
+
+.name {
+  width: 100%;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: $color-text-muted;
+  text-align: center;
+}

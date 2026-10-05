@@ -1,0 +1,10 @@
+@use '../styles/variables' as *;
+
+.boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  color: $color-text-muted;
+  line-height: 1.5;
+}

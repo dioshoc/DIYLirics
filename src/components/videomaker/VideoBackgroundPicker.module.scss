@@ -1,0 +1,120 @@
+@use '../../styles/variables' as *;
+
+.section {
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+}
+
+.sectionTitle {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  background: $color-surface-hover;
+  border-bottom: 1px solid $color-border;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-text;
+  text-align: left;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 8%);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &[data-selected='true'] {
+    border-color: $color-accent;
+    background: rgb(108 140 255 / 14%);
+  }
+}
+
+.optionLabel {
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.optionMeta {
+  font-size: 12px;
+  color: $color-text-muted;
+  line-height: 1.5;
+}
+
+.customBlock {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-bg;
+  color: $color-text;
+  line-height: 1.5;
+  font-size: 13px;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.fileName {
+  font-size: 12px;
+  color: $color-text-muted;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.clearBtn {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-hover;
+  color: $color-text-muted;
+  font-size: 12px;
+  line-height: 1.5;
+
+  &:hover {
+    color: $color-text;
+    border-color: $color-accent;
+  }
+}
+
+.hint {
+  margin: 0;
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: $color-text-muted;
+  line-height: 1.5;
+}
