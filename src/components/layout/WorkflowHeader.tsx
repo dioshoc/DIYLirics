@@ -14,6 +14,7 @@ import {
   isWorkflowStepComplete,
 } from '../../utils/workflowReadiness';
 import { ExportBlockingOverlay } from './ExportBlockingOverlay';
+import diyliricsLogo from '../../assets/diylirics-logo.webp';
 import panel from '../shared/Panel.module.scss';
 import styles from './WorkflowHeader.module.scss';
 
@@ -36,7 +37,9 @@ export const WorkflowHeader = () => {
   const lyricsEndTimeSec = useSessionStore((s) => s.lyricsEndTimeSec);
   const videoSettings = useSessionStore((s) => s.videoSettings);
 
-  const [isExporting, setIsExporting] = useState(false);
+  const [showExportOverlay, setShowExportOverlay] = useState(false);
+  const [exportInProgress, setExportInProgress] = useState(false);
+  const [exportFinished, setExportFinished] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -66,13 +69,21 @@ export const WorkflowHeader = () => {
     setActiveTab(nextTab);
   };
 
+  const handleCloseExportOverlay = () => {
+    setShowExportOverlay(false);
+    setExportFinished(false);
+    setExportProgress(0);
+  };
+
   const handleDownloadClick = async () => {
-    if (isExporting || exportBlockers.length > 0) {
+    if (exportInProgress || exportBlockers.length > 0) {
       return;
     }
 
     setExportError(null);
-    setIsExporting(true);
+    setShowExportOverlay(true);
+    setExportInProgress(true);
+    setExportFinished(false);
     setExportProgress(0);
 
     const project = buildLyricsProject(track, lines, lyricsEndTimeSec);
@@ -91,13 +102,16 @@ export const WorkflowHeader = () => {
           setExportProgress(progress.ratio);
         },
       );
+      setExportProgress(1);
+      setExportFinished(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Video export failed.';
       setExportError(message);
-    } finally {
-      setIsExporting(false);
+      setShowExportOverlay(false);
       setExportProgress(0);
+    } finally {
+      setExportInProgress(false);
     }
   };
 
@@ -106,15 +120,28 @@ export const WorkflowHeader = () => {
 
   return (
     <>
-      {isExporting ? (
-        <ExportBlockingOverlay progressRatio={exportProgress} />
+      {showExportOverlay ? (
+        <ExportBlockingOverlay
+          progressRatio={exportProgress}
+          isComplete={exportFinished}
+          onClose={handleCloseExportOverlay}
+        />
       ) : null}
     <header
       className={styles.header}
       aria-label="Workflow"
-      aria-hidden={isExporting}
+      aria-hidden={showExportOverlay}
     >
-      <h1 className={styles.brand}>DIYLirics</h1>
+      <h1 className={styles.brand}>
+        <img
+          className={styles.brandLogo}
+          src={diyliricsLogo}
+          alt="DIY Lirics"
+          width={700}
+          height={233}
+          decoding="async"
+        />
+      </h1>
       <ol className={styles.steps}>
         {WORKFLOW_TAB_ORDER.map((tab, index) => {
           const isStepAccessible = canNavigateToTab(
@@ -160,14 +187,14 @@ export const WorkflowHeader = () => {
             type="button"
             className={panel.button}
             data-variant="primary"
-            disabled={isExporting || exportBlockers.length > 0}
-            aria-busy={isExporting}
+            disabled={exportInProgress || exportBlockers.length > 0}
+            aria-busy={exportInProgress}
             title={exportBlockers.join(' ')}
             onClick={() => {
               void handleDownloadClick();
             }}
           >
-            {isExporting ? `Exporting… ${exportPercent}%` : 'Download video'}
+            {exportInProgress ? `Exporting… ${exportPercent}%` : 'Download video'}
           </button>
         ) : (
           <button

@@ -35,7 +35,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ DIYLirics │  ① Options — ② Liricks — ③ Videomaker   │  Next / Download │
+│ [logo]    │  ① Options — ② Liricks — ③ Videomaker   │  Next / Download │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Options / Liricks: контент по центру, max-width 1200px ($content-max) │
 │  Videomaker: на всю ширину (колонка настроек ~280px + preview)           │
@@ -86,7 +86,7 @@
 | 3 | **Cover side** (YouTube) / **Cover position** (TikTok) | `youtubeCoverSide`, `tiktokCoverPosition` |
 | 4 | **Lyric font**, **Lyric entrance**, **Lyric position**, **Text size** | `lyricFontId`, `lyricAnimationPreset`, align v/h, `lyricFontSize` (±20%) |
 | 5 | Preview + нижний плеер | preview time + rAF для анимации текста; TikTok social UI только в preview |
-| 6 | **Download video** | офлайн MP4; полноэкранный `ExportBlockingOverlay` на время кодирования |
+| 6 | **Download video** | офлайн MP4; `ExportBlockingOverlay` на время кодирования и до закрытия пользователем (× / Escape) |
 
 **Download video** требует: аудио, синхронизированные строки, доступный URL фона (`getVideoExportBlockers`).
 
@@ -293,7 +293,11 @@ type VideoSettings = {
 - Кадры: 30 fps, по таймлайну до `lyricsEndTimeSec` или длительности аудио; имя файла — **Song title** из Options (кириллица сохраняется, недопустимые символы пути заменяются).
 - Зависимость: `mediabunny` + WebCodecs (H.264/AAC) в браузере.
 - Блокеры: нет аудио, нет синхронизированных строк, нет URL фона (`getVideoExportBlockers`).
-- **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`** (нельзя кликать/фокусировать приложение под оверлеем). Тексты оверлея на английском. Снимается после успешного скачивания или ошибки.
+- **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`**. Тексты оверлея на английском.
+  - **Фазы:** во время кодирования — спиннер, «Exporting video», progress bar; после успешного скачивания оверлей **остаётся открытым** — «Download ready», 100%, галочка; закрытие только кнопкой **×** в углу карточки или **Escape** (`WorkflowHeader`: `showExportOverlay`, `exportFinished`).
+  - **Поддержка проекта** (внизу карточки, видна и во время экспорта, и после): две карточки в сетке — **Boosty** (QR + ссылка) и **Band.link** (QR + ссылка). URL: `src/constants/projectSupport.ts`; QR: `src/assets/boosty-donate-qr.png`, `src/assets/band-link-qr.png`.
+  - При **ошибке** экспорта оверлей закрывается, сообщение — в WorkflowHeader.
+- **Брендинг в шапке:** логотип-картинка `src/assets/diylirics-logo.webp` в `WorkflowHeader` (`alt="DIY Lirics"`).
 
 **Зависимости от Liricks / Options:**
 
@@ -409,5 +413,7 @@ docs/
 | 2026-10-05 | **Док:** §2.1 — подробное описание всех шагов workflow. |
 | 2026-10-05 | **Videomaker:** `lyricFontSize` small / medium / large (×0.8 / ×1 / ×1.2), preview (`--lyric-font-scale`) и MP4 export. |
 | 2026-10-05 | **Videomaker:** каталог шрифтов лирики (`lyricFontId`), анимации входа/выхода строк (`lyricAnimationPreset`); детали — `docs/VIDEOMaker.md`. |
+| 2026-10-07 | **Брендинг:** логотип в WorkflowHeader (`diylirics-logo.webp`). |
+| 2026-10-07 | **Export UX:** оверлей после успешного MP4 не закрывается сам; × / Escape; блоки Boosty + Band.link с QR (`projectSupport.ts`). |
 
-*Документ версии 2.9 — база для генерации кода агентом и разработчиком.*
+*Документ версии 2.10 — база для генерации кода агентом и разработчиком.*

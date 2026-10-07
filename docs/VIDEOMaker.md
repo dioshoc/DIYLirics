@@ -207,9 +207,19 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 **Блокировка UI на время экспорта:**
 
 - Компонент `ExportBlockingOverlay` (портал на `document.body`, `z-index` поверх всего приложения).
-- Спиннер, заголовок «Exporting video», подсказка не закрывать вкладку, progress bar + проценты.
-- `document.body.style.overflow = 'hidden'`; корень `data-app-shell` получает **`inert`** — ввод и фокус в приложении отключены до завершения.
-- Управляется из `WorkflowHeader` (`isExporting` + `exportProgress`).
+- **Во время кодирования:** спиннер, «Exporting video», подсказка не закрывать вкладку, progress bar + проценты.
+- **После успешного скачивания:** оверлей **не скрывается** — «Download ready», галочка, 100%; закрытие — **×** в правом верхнем углу карточки или **Escape**.
+- `document.body.style.overflow = 'hidden'`; корень `data-app-shell` получает **`inert`** пока оверлей открыт (ссылки Boosty/Band.link внутри портала кликабельны).
+- Состояние в `WorkflowHeader`: `showExportOverlay`, `exportInProgress`, `exportFinished`, `exportProgress`. При ошибке export — оверлей снимается, текст ошибки в header.
+
+**Поддержка проекта в оверлее** (две карточки, сетка 2 колонки / на узком экране столбик):
+
+| Карточка | QR | Кнопка | URL (константа) |
+|----------|-----|--------|------------------|
+| Boosty | `src/assets/boosty-donate-qr.png` | Support on Boosty (primary) | `BOOSTY_DONATE_URL` |
+| Band.link | `src/assets/band-link-qr.png` | Open Band.link | `BAND_LINK_URL` |
+
+Файл констант: `src/constants/projectSupport.ts`. Подписи и кнопки — английский UI.
 
 **Ограничение:** нужны WebCodecs H.264/AAC; иначе сообщение об ошибке в header.
 
@@ -237,3 +247,4 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-05 | **Lyric font:** грид плиток Aa, 39 Google Fonts (`videoLyricFonts.ts`, `lyricFonts.scss`), default Rubik. |
 | 2026-10-05 | **Lyric entrance:** 10 пресетов + No animation (плитка ban); вход/выход 0.45 s; preview (rAF) + MP4 (`lyricAnimationTransform.ts`). |
 | 2026-10-05 | **Scale in** exit: увеличение + blur + fade. Preview: `useAudioDrivenTimeSec` вместо `timeupdate` для плавности. |
+| 2026-10-07 | **Export overlay:** после MP4 остаётся открытым до × / Escape; Boosty + Band.link с QR; `projectSupport.ts`. |

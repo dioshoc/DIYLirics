@@ -13,10 +13,15 @@
 .brand {
   margin: 0;
   flex-shrink: 0;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: 0.02em;
+  line-height: 0;
+}
+
+.brandLogo {
+  display: block;
+  width: auto;
+  height: 36px;
+  max-width: min(200px, 32vw);
+  object-fit: contain;
 }
 
 .steps {
