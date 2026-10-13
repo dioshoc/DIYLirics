@@ -1,0 +1,101 @@
+@use '../../styles/variables' as *;
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 48px;
+  min-width: 0;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  border-radius: $radius-md;
+  background: rgb(255 255 255 / 4%);
+}
+
+.waveformLayer {
+  position: absolute;
+  inset: 4px 6px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.selection {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: stretch;
+  min-width: 48px;
+  border-radius: $radius-md;
+  border: 2px solid $color-accent;
+  background: rgb(108 140 255 / 22%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 25%);
+  z-index: 2;
+}
+
+.selectionBody {
+  flex: 1;
+  min-width: 8px;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: rgb(108 140 255 / 35%);
+  color: $color-text;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: ew-resize;
+
+  &:hover {
+    background: rgb(108 140 255 / 55%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-accent-hover;
+    outline-offset: -2px;
+    z-index: 1;
+  }
+}
+
+.playhead {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 14px;
+  margin-left: -7px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: grab;
+  z-index: 4;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 50%;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}

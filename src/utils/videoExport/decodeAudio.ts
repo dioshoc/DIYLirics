@@ -37,3 +37,44 @@ export const trimAudioBuffer = (
 
   return trimmed;
 };
+
+export const sliceAudioBuffer = (
+  buffer: AudioBuffer,
+  startSec: number,
+  durationSec: number,
+): AudioBuffer => {
+  const startSample = Math.min(
+    buffer.length,
+    Math.max(0, Math.floor(startSec * buffer.sampleRate)),
+  );
+  const sampleCount = Math.min(
+    Math.max(0, Math.floor(durationSec * buffer.sampleRate)),
+    buffer.length - startSample,
+  );
+
+  if (sampleCount <= 0) {
+    return trimAudioBuffer(buffer, 0);
+  }
+
+  if (startSample === 0 && sampleCount >= buffer.length) {
+    return buffer;
+  }
+
+  const sliced = new AudioContext().createBuffer(
+    buffer.numberOfChannels,
+    sampleCount,
+    buffer.sampleRate,
+  );
+
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    sliced.copyToChannel(
+      buffer.getChannelData(channel).subarray(
+        startSample,
+        startSample + sampleCount,
+      ),
+      channel,
+    );
+  }
+
+  return sliced;
+};

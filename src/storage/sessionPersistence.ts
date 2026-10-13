@@ -1,3 +1,4 @@
+import { TIKTOK_CLIP_DURATION_DEFAULT_SEC } from '../constants/tiktokClip';
 import type { VideoFormatId } from '../constants/videoFormats';
 import type { TiktokCoverPosition } from '../constants/tiktokCoverLayout';
 import {
@@ -58,6 +59,8 @@ type PersistedSessionV1 = {
     lyricFontId?: LyricFontId;
     lyricAnimationPreset?: LyricAnimationPresetId;
     showTrackInfoUnderCover?: boolean;
+    tiktokClipDurationSec?: number;
+    tiktokClipStartSec?: number;
     customBackgroundKind: VideoBackgroundKind | null;
   };
 };
@@ -117,6 +120,9 @@ const buildVideoSettingsFromBlob = async (
       ? persisted.lyricAnimationPreset!
       : DEFAULT_LYRIC_ANIMATION_PRESET,
     showTrackInfoUnderCover: persisted.showTrackInfoUnderCover ?? false,
+    tiktokClipDurationSec:
+      persisted.tiktokClipDurationSec ?? TIKTOK_CLIP_DURATION_DEFAULT_SEC,
+    tiktokClipStartSec: persisted.tiktokClipStartSec ?? 0,
     customBackgroundKind:
       kindFromFile ?? persisted.customBackgroundKind ?? null,
     customBackgroundFile,
@@ -166,6 +172,8 @@ const persistState = async (): Promise<void> => {
       lyricFontId: state.videoSettings.lyricFontId,
       lyricAnimationPreset: state.videoSettings.lyricAnimationPreset,
       showTrackInfoUnderCover: state.videoSettings.showTrackInfoUnderCover,
+      tiktokClipDurationSec: state.videoSettings.tiktokClipDurationSec,
+      tiktokClipStartSec: state.videoSettings.tiktokClipStartSec,
       customBackgroundKind: state.videoSettings.customBackgroundKind,
     },
   };

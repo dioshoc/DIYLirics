@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { TIKTOK_CLIP_DURATION_DEFAULT_SEC } from '../constants/tiktokClip';
 import type { VideoFormatId } from '../constants/videoFormats';
 import type { TiktokCoverPosition } from '../constants/tiktokCoverLayout';
 import {
@@ -29,6 +30,7 @@ import {
   lyricsProjectToLines,
 } from '../utils/importLyricsProject';
 import { nudgeTime } from '../utils/time';
+import { clampTiktokClipSettings } from '../utils/tiktokExportWindow';
 import { getCustomBackgroundKind } from '../utils/videoBackground';
 
 type SessionState = {
@@ -57,6 +59,9 @@ type SessionState = {
   setVideoBackgroundSource: (source: VideoBackgroundSource) => void;
   setYoutubeCoverSide: (side: YoutubeCoverSide) => void;
   setTiktokCoverPosition: (position: TiktokCoverPosition) => void;
+  setTiktokClipDurationSec: (durationSec: number) => void;
+  setTiktokClipStartSec: (startSec: number) => void;
+  setTiktokClipWindow: (startSec: number, durationSec: number) => void;
   setLyricVerticalAlign: (align: LyricVerticalAlign) => void;
   setLyricHorizontalAlign: (align: LyricHorizontalAlign) => void;
   setLyricFontSize: (size: LyricFontSize) => void;
@@ -86,6 +91,8 @@ const initialVideoSettings: VideoSettings = {
   lyricFontSize: 'medium',
   lyricFontId: DEFAULT_LYRIC_FONT_ID,
   lyricAnimationPreset: DEFAULT_LYRIC_ANIMATION_PRESET,
+  tiktokClipDurationSec: TIKTOK_CLIP_DURATION_DEFAULT_SEC,
+  tiktokClipStartSec: 0,
   showTrackInfoUnderCover: false,
   customBackgroundFile: null,
   customBackgroundObjectUrl: null,
@@ -292,6 +299,88 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       videoSettings: { ...state.videoSettings, tiktokCoverPosition },
     })),
+
+  setTiktokClipDurationSec: (tiktokClipDurationSec) =>
+    set((state) => {
+      const contentEnd = state.track.durationSec;
+      if (!contentEnd) {
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            tiktokClipDurationSec,
+          },
+        };
+      }
+
+      const clamped = clampTiktokClipSettings(
+        contentEnd,
+        tiktokClipDurationSec,
+        state.videoSettings.tiktokClipStartSec,
+      );
+
+      return {
+        videoSettings: {
+          ...state.videoSettings,
+          tiktokClipDurationSec: clamped.clipDurationSec,
+          tiktokClipStartSec: clamped.clipStartSec,
+        },
+      };
+    }),
+
+  setTiktokClipStartSec: (tiktokClipStartSec) =>
+    set((state) => {
+      const contentEnd = state.track.durationSec;
+      if (!contentEnd) {
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            tiktokClipStartSec,
+          },
+        };
+      }
+
+      const clamped = clampTiktokClipSettings(
+        contentEnd,
+        state.videoSettings.tiktokClipDurationSec,
+        tiktokClipStartSec,
+      );
+
+      return {
+        videoSettings: {
+          ...state.videoSettings,
+          tiktokClipDurationSec: clamped.clipDurationSec,
+          tiktokClipStartSec: clamped.clipStartSec,
+        },
+      };
+    }),
+
+  setTiktokClipWindow: (tiktokClipStartSec, tiktokClipDurationSec) =>
+    set((state) => {
+      const contentEnd = state.track.durationSec;
+      if (!contentEnd) {
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            tiktokClipStartSec,
+            tiktokClipDurationSec,
+          },
+        };
+      }
+
+      const clamped = clampTiktokClipSettings(
+        contentEnd,
+        tiktokClipDurationSec,
+        tiktokClipStartSec,
+      );
+
+      return {
+        videoSettings: {
+          ...state.videoSettings,
+          tiktokClipDurationSec: clamped.clipDurationSec,
+          tiktokClipStartSec: clamped.clipStartSec,
+        },
+      };
+    }),
 
   setLyricVerticalAlign: (lyricVerticalAlign) =>
     set((state) => ({

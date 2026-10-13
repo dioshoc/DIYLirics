@@ -12,7 +12,8 @@ import {
 import { getVideoFormat } from '../../constants/videoFormats';
 import type { LyricsProject, TrackMeta, VideoSettings } from '../../types/session';
 import type { ResolvedVideoBackground } from '../videoBackground';
-import { decodeAudioFromUrl, trimAudioBuffer } from './decodeAudio';
+import { resolveTiktokExportWindow } from '../tiktokExportWindow';
+import { decodeAudioFromUrl, sliceAudioBuffer } from './decodeAudio';
 import { ensureLyricFontLoaded } from './ensureLyricFontLoaded';
 import { drawExportFrame } from './drawFrame';
 import { loadExportMediaAssets, seekBackgroundVideo } from './loadAssets';
@@ -95,16 +96,28 @@ export const exportLyricVideo = async (
   );
 
   const decodedAudio = await decodeAudioFromUrl(audioUrl);
-  const durationSec =
+  const contentEndSec =
     input.lyricsEndTimeSec ??
     input.project.meta.durationSec ??
     decodedAudio.duration;
 
-  if (!durationSec || !Number.isFinite(durationSec)) {
+  if (!contentEndSec || !Number.isFinite(contentEndSec)) {
     throw new Error('Audio duration is unknown.');
   }
 
-  const audioBuffer = trimAudioBuffer(decodedAudio, durationSec);
+  const tiktokBoundsSec = decodedAudio.duration;
+  const exportWindow = resolveTiktokExportWindow(
+    input.videoSettings.formatId,
+    input.videoSettings,
+    input.videoSettings.formatId === 'tiktok' ? tiktokBoundsSec : contentEndSec,
+  );
+  const durationSec = exportWindow.durationSec;
+
+  const audioBuffer = sliceAudioBuffer(
+    decodedAudio,
+    exportWindow.startSec,
+    exportWindow.durationSec,
+  );
 
   const canvas = document.createElement('canvas');
   canvas.width = format.width;
@@ -166,20 +179,21 @@ export const exportLyricVideo = async (
   const totalFrames = Math.max(1, Math.ceil(durationSec * EXPORT_FPS));
 
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
-    const timeSec = Math.min(frameIndex / EXPORT_FPS, durationSec);
+    const localTimeSec = Math.min(frameIndex / EXPORT_FPS, durationSec);
+    const timelineTimeSec = exportWindow.startSec + localTimeSec;
 
     if (assets.backgroundVideo) {
-      await seekBackgroundVideo(assets.backgroundVideo, timeSec);
+      await seekBackgroundVideo(assets.backgroundVideo, timelineTimeSec);
     }
 
-    await drawExportFrame(ctx, timeSec, drawConfig, assets);
-    await videoSource.add(timeSec, 1 / EXPORT_FPS, {
+    await drawExportFrame(ctx, timelineTimeSec, drawConfig, assets);
+    await videoSource.add(localTimeSec, 1 / EXPORT_FPS, {
       keyFrame: frameIndex % EXPORT_FPS === 0,
     });
 
     onProgress?.({
       ratio: (frameIndex + 1) / totalFrames,
-      timeSec,
+      timeSec: localTimeSec,
       durationSec,
     });
   }

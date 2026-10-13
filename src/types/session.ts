@@ -60,6 +60,8 @@ export type VideoSettings = {
   lyricFontSize: LyricFontSize;
   lyricFontId: LyricFontId;
   lyricAnimationPreset: LyricAnimationPresetId;
+  tiktokClipDurationSec: number;
+  tiktokClipStartSec: number;
   showTrackInfoUnderCover: boolean;
   customBackgroundFile: File | null;
   customBackgroundObjectUrl: string | null;

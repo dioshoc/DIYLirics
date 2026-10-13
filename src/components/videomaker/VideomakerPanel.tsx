@@ -30,6 +30,7 @@ export const VideomakerPanel = () => {
   const setTiktokCoverPosition = useSessionStore(
     (s) => s.setTiktokCoverPosition,
   );
+  const setTiktokClipWindow = useSessionStore((s) => s.setTiktokClipWindow);
   const setLyricVerticalAlign = useSessionStore((s) => s.setLyricVerticalAlign);
   const setLyricHorizontalAlign = useSessionStore(
     (s) => s.setLyricHorizontalAlign,
@@ -58,6 +59,30 @@ export const VideomakerPanel = () => {
   const handlePreviewPlayingChange = useCallback((isPlaying: boolean) => {
     setIsPreviewPlaying(isPlaying);
   }, []);
+
+  const clipConfig = useMemo(() => {
+    const timelineDurationSec = track.durationSec;
+    if (
+      videoSettings.formatId !== 'tiktok' ||
+      timelineDurationSec === null ||
+      timelineDurationSec <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      contentEndSec: timelineDurationSec,
+      clipStartSec: videoSettings.tiktokClipStartSec,
+      clipDurationSec: videoSettings.tiktokClipDurationSec,
+      onClipWindowChange: setTiktokClipWindow,
+    };
+  }, [
+    setTiktokClipWindow,
+    track.durationSec,
+    videoSettings.formatId,
+    videoSettings.tiktokClipDurationSec,
+    videoSettings.tiktokClipStartSec,
+  ]);
 
   const syncedCount = lines.filter((l) => l.startTimeSec !== null).length;
   const project = useMemo(
@@ -197,6 +222,7 @@ export const VideomakerPanel = () => {
             onDuration={setDurationSec}
             onTimeUpdate={handlePreviewTimeUpdate}
             onPlayingChange={handlePreviewPlayingChange}
+            clipConfig={clipConfig}
             embedded
           />
         </footer>
