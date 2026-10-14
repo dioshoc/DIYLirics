@@ -1,0 +1,1 @@
+export const BACKGROUND_MEDIA_CLIP_MIN_SEC = 1;

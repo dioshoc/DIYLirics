@@ -11,6 +11,15 @@ import {
   type LyricAnimationPresetId,
   isLyricAnimationPresetId,
 } from '../constants/videoLyricAnimation';
+import {
+  type LyricEffectColorSettings,
+  normalizeLyricEffectColorSettings,
+} from '../constants/lyricEffectColors';
+import {
+  DEFAULT_LYRIC_VISUAL_EFFECTS,
+  type LyricVisualEffects,
+  normalizeLyricVisualEffects,
+} from '../constants/videoLyricEffects';
 import type { LyricFontSize } from '../constants/videoLyricFontSize';
 import type {
   LyricHorizontalAlign,
@@ -26,6 +35,7 @@ import type {
   VideoBackgroundSource,
   VideoSettings,
 } from '../types/session';
+import { clampBackgroundMediaClipSettings } from '../utils/backgroundMediaClip';
 import { getCustomBackgroundKind } from '../utils/videoBackground';
 import {
   deleteSessionBlob,
@@ -58,10 +68,15 @@ type PersistedSessionV1 = {
     lyricFontSize?: LyricFontSize;
     lyricFontId?: LyricFontId;
     lyricAnimationPreset?: LyricAnimationPresetId;
+    lyricEffects?: Partial<LyricVisualEffects> & { longShadow?: boolean };
+    lyricEffectColor?: Partial<LyricEffectColorSettings>;
     showTrackInfoUnderCover?: boolean;
     tiktokClipDurationSec?: number;
     tiktokClipStartSec?: number;
     customBackgroundKind: VideoBackgroundKind | null;
+    customBackgroundDurationSec?: number | null;
+    customBackgroundClipStartSec?: number;
+    customBackgroundClipDurationSec?: number;
   };
 };
 
@@ -70,6 +85,16 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let unsubscribe: (() => void) | null = null;
 
 const fileToObjectUrl = (file: File): string => URL.createObjectURL(file);
+
+const normalizePersistedLyricEffects = (
+  raw?: PersistedSessionV1['videoSettings']['lyricEffects'],
+): LyricVisualEffects =>
+  normalizeLyricVisualEffects({
+    glow: raw?.glow ?? DEFAULT_LYRIC_VISUAL_EFFECTS.glow,
+    outline: raw?.outline ?? DEFAULT_LYRIC_VISUAL_EFFECTS.outline,
+    cutOut:
+      raw?.cutOut ?? raw?.longShadow ?? DEFAULT_LYRIC_VISUAL_EFFECTS.cutOut,
+  });
 
 const resolvePersistedLyricFontId = (
   value: LyricFontId | undefined,
@@ -99,11 +124,35 @@ const buildTrackFromBlobs = async (
 
 const buildVideoSettingsFromBlob = async (
   persisted: PersistedSessionV1['videoSettings'],
+  trackDurationSec: number | null,
 ): Promise<VideoSettings> => {
   const customBackgroundFile = await loadSessionBlob('customBackground');
   const kindFromFile = customBackgroundFile
     ? getCustomBackgroundKind(customBackgroundFile)
     : null;
+
+  const customBackgroundDurationSec =
+    persisted.customBackgroundDurationSec ?? null;
+  const timelineDurationSec =
+    trackDurationSec && trackDurationSec > 0
+      ? trackDurationSec
+      : customBackgroundDurationSec;
+  const mediaClip =
+    customBackgroundDurationSec &&
+    customBackgroundDurationSec > 0 &&
+    timelineDurationSec &&
+    timelineDurationSec > 0
+      ? clampBackgroundMediaClipSettings(
+          timelineDurationSec,
+          customBackgroundDurationSec,
+          persisted.customBackgroundClipDurationSec ??
+            customBackgroundDurationSec,
+          persisted.customBackgroundClipStartSec ?? 0,
+        )
+      : {
+          clipStartSec: persisted.customBackgroundClipStartSec ?? 0,
+          clipDurationSec: persisted.customBackgroundClipDurationSec ?? 0,
+        };
 
   return {
     formatId: persisted.formatId,
@@ -119,6 +168,10 @@ const buildVideoSettingsFromBlob = async (
     )
       ? persisted.lyricAnimationPreset!
       : DEFAULT_LYRIC_ANIMATION_PRESET,
+    lyricEffects: normalizePersistedLyricEffects(persisted.lyricEffects),
+    lyricEffectColor: normalizeLyricEffectColorSettings(
+      persisted.lyricEffectColor,
+    ),
     showTrackInfoUnderCover: persisted.showTrackInfoUnderCover ?? false,
     tiktokClipDurationSec:
       persisted.tiktokClipDurationSec ?? TIKTOK_CLIP_DURATION_DEFAULT_SEC,
@@ -129,6 +182,9 @@ const buildVideoSettingsFromBlob = async (
     customBackgroundObjectUrl: customBackgroundFile
       ? fileToObjectUrl(customBackgroundFile)
       : null,
+    customBackgroundDurationSec,
+    customBackgroundClipStartSec: mediaClip.clipStartSec,
+    customBackgroundClipDurationSec: mediaClip.clipDurationSec,
   };
 };
 
@@ -171,10 +227,18 @@ const persistState = async (): Promise<void> => {
       lyricFontSize: state.videoSettings.lyricFontSize,
       lyricFontId: state.videoSettings.lyricFontId,
       lyricAnimationPreset: state.videoSettings.lyricAnimationPreset,
+      lyricEffects: state.videoSettings.lyricEffects,
+      lyricEffectColor: state.videoSettings.lyricEffectColor,
       showTrackInfoUnderCover: state.videoSettings.showTrackInfoUnderCover,
       tiktokClipDurationSec: state.videoSettings.tiktokClipDurationSec,
       tiktokClipStartSec: state.videoSettings.tiktokClipStartSec,
       customBackgroundKind: state.videoSettings.customBackgroundKind,
+      customBackgroundDurationSec:
+        state.videoSettings.customBackgroundDurationSec,
+      customBackgroundClipStartSec:
+        state.videoSettings.customBackgroundClipStartSec,
+      customBackgroundClipDurationSec:
+        state.videoSettings.customBackgroundClipDurationSec,
     },
   };
 
@@ -211,7 +275,10 @@ export const restoreSessionFromStorage = async (): Promise<boolean> => {
     }
 
     const track = await buildTrackFromBlobs(parsed.track);
-    const videoSettings = await buildVideoSettingsFromBlob(parsed.videoSettings);
+    const videoSettings = await buildVideoSettingsFromBlob(
+      parsed.videoSettings,
+      track.durationSec,
+    );
 
     useSessionStore.setState({
       activeTab: parsed.activeTab,

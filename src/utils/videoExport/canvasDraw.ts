@@ -1,4 +1,16 @@
+import type { LyricEffectPalette } from '../../constants/lyricEffectColors';
+import type { LyricAnimationPresetId } from '../../constants/videoLyricAnimation';
+import type { LyricVisualEffects } from '../../constants/videoLyricEffects';
 import type { LyricAnimationTransform } from '../lyricAnimationTransform';
+import {
+  type LyricCanvasEffectFrame,
+  paintLyricTextWithEffects,
+} from '../lyricCanvasEffects';
+import {
+  getLyricWordAnimationTransform,
+  isWordRandomAnimationPreset,
+  splitLyricIntoWords,
+} from '../lyricWordAnimation';
 
 export const drawImageCover = (
   ctx: CanvasRenderingContext2D,
@@ -98,11 +110,17 @@ export const drawLyricInBox = (
   fontFamily: string,
   fontWeight: number = 700,
   animation: LyricAnimationTransform = DEFAULT_ANIMATION,
+  lyricEffects: LyricVisualEffects,
+  palette: LyricEffectPalette,
+  effectFrame: LyricCanvasEffectFrame,
+  timeSec: number,
+  lineId: string | null,
 ): void => {
   if (!text) {
     return;
   }
 
+  const lineCharCount = text.length;
   const maxWidth = box.width * 0.92;
   ctx.save();
   ctx.globalAlpha = animation.opacity;
@@ -119,12 +137,8 @@ export const drawLyricInBox = (
   ctx.scale(animation.scale, animation.scale);
   ctx.translate(-centerX, -centerY);
 
-  ctx.fillStyle = '#ffffff';
   ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
   ctx.textBaseline = 'top';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-  ctx.shadowBlur = fontSize * 0.2;
-  ctx.shadowOffsetY = fontSize * 0.04;
 
   const lines = wrapTextLines(ctx, text, maxWidth);
   const lineHeight = fontSize * 1.45;
@@ -137,7 +151,8 @@ export const drawLyricInBox = (
     startY = box.y + box.height - blockHeight;
   }
 
-  lines.forEach((line, index) => {
+  let charIndexOffset = 0;
+  lines.forEach((line, lineIndex) => {
     let x = box.x;
     const lineWidth = ctx.measureText(line).width;
     if (align.horizontal === 'center') {
@@ -145,7 +160,221 @@ export const drawLyricInBox = (
     } else if (align.horizontal === 'right') {
       x = box.x + box.width - lineWidth;
     }
-    ctx.fillText(line, x, startY + index * lineHeight);
+    paintLyricTextWithEffects(
+      ctx,
+      line,
+      x,
+      startY + lineIndex * lineHeight,
+      fontSize,
+      lyricEffects,
+      palette,
+      effectFrame,
+      timeSec,
+      lineId,
+      lineCharCount,
+      charIndexOffset,
+    );
+    charIndexOffset += line.length;
+  });
+
+  ctx.restore();
+};
+
+type LyricWordPlacement = {
+  wordIndex: number;
+  x: number;
+  y: number;
+};
+
+const layoutLyricWordPlacements = (
+  ctx: CanvasRenderingContext2D,
+  words: string[],
+  box: { x: number; y: number; width: number; height: number },
+  align: TextBoxAlign,
+  fontSize: number,
+): LyricWordPlacement[] => {
+  const maxWidth = box.width * 0.92;
+  const spaceWidth = ctx.measureText(' ').width;
+  const lineHeight = fontSize * 1.45;
+  const rows: number[][] = [];
+  let row: number[] = [];
+  let rowWidth = 0;
+
+  words.forEach((word, wordIndex) => {
+    const wordWidth = ctx.measureText(word).width;
+    const extraWidth = row.length === 0 ? wordWidth : spaceWidth + wordWidth;
+
+    if (row.length > 0 && rowWidth + extraWidth > maxWidth) {
+      rows.push(row);
+      row = [wordIndex];
+      rowWidth = wordWidth;
+      return;
+    }
+
+    row.push(wordIndex);
+    rowWidth += extraWidth;
+  });
+
+  if (row.length > 0) {
+    rows.push(row);
+  }
+
+  const blockHeight = rows.length * lineHeight;
+  let startY = box.y;
+  if (align.vertical === 'center') {
+    startY = box.y + (box.height - blockHeight) / 2;
+  } else if (align.vertical === 'bottom') {
+    startY = box.y + box.height - blockHeight;
+  }
+
+  const placements: LyricWordPlacement[] = [];
+
+  rows.forEach((rowIndices, rowIndex) => {
+    const y = startY + rowIndex * lineHeight;
+    let rowPixelWidth = 0;
+
+    rowIndices.forEach((wordIndex, indexInRow) => {
+      const wordWidth = ctx.measureText(words[wordIndex]).width;
+      if (indexInRow > 0) {
+        rowPixelWidth += spaceWidth;
+      }
+      rowPixelWidth += wordWidth;
+    });
+
+    let x = box.x;
+    if (align.horizontal === 'center') {
+      x = box.x + (box.width - rowPixelWidth) / 2;
+    } else if (align.horizontal === 'right') {
+      x = box.x + box.width - rowPixelWidth;
+    }
+
+    rowIndices.forEach((wordIndex, indexInRow) => {
+      if (indexInRow > 0) {
+        x += spaceWidth;
+      }
+      placements.push({ wordIndex, x, y });
+      x += ctx.measureText(words[wordIndex]).width;
+    });
+  });
+
+  return placements;
+};
+
+const drawSingleWord = (
+  ctx: CanvasRenderingContext2D,
+  word: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  animation: LyricAnimationTransform,
+  lyricEffects: LyricVisualEffects,
+  palette: LyricEffectPalette,
+  effectFrame: LyricCanvasEffectFrame,
+  timeSec: number,
+  lineId: string | null,
+  lineCharCount: number,
+  charIndexOffset: number,
+): void => {
+  const wordWidth = ctx.measureText(word).width;
+  const centerX = x + wordWidth / 2;
+  const centerY = y + fontSize * 0.72;
+
+  ctx.save();
+  ctx.globalAlpha = animation.opacity;
+  if (animation.blurPx > 0) {
+    ctx.filter = `blur(${animation.blurPx}px)`;
+  }
+  ctx.translate(
+    centerX + animation.translateX,
+    centerY + animation.translateY,
+  );
+  ctx.rotate(animation.rotation);
+  ctx.scale(animation.scale, animation.scale);
+  ctx.translate(-centerX, -centerY);
+  paintLyricTextWithEffects(
+    ctx,
+    word,
+    x,
+    y,
+    fontSize,
+    lyricEffects,
+    palette,
+    effectFrame,
+    timeSec,
+    lineId,
+    lineCharCount,
+    charIndexOffset,
+  );
+  ctx.restore();
+};
+
+export const drawWordAnimatedLyricInBox = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  lineId: string,
+  lineStartSec: number,
+  lineEndSec: number | null,
+  timeSec: number,
+  preset: LyricAnimationPresetId,
+  box: { x: number; y: number; width: number; height: number },
+  align: TextBoxAlign,
+  fontSize: number,
+  fontFamily: string,
+  fontWeight: number = 700,
+  lyricEffects: LyricVisualEffects,
+  palette: LyricEffectPalette,
+  effectFrame: LyricCanvasEffectFrame,
+): void => {
+  if (!text || !isWordRandomAnimationPreset(preset)) {
+    return;
+  }
+
+  const words = splitLyricIntoWords(text);
+  if (words.length === 0) {
+    return;
+  }
+
+  const lineCharCount = text.length;
+
+  ctx.save();
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  ctx.textBaseline = 'top';
+
+  const placements = layoutLyricWordPlacements(
+    ctx,
+    words,
+    box,
+    align,
+    fontSize,
+  );
+
+  placements.forEach(({ wordIndex, x, y }) => {
+    const animation = getLyricWordAnimationTransform(
+      preset,
+      timeSec,
+      lineStartSec,
+      lineEndSec,
+      fontSize,
+      wordIndex,
+      words.length,
+      lineId,
+    );
+    const charIndexOffset = words.slice(0, wordIndex).join(' ').length;
+    drawSingleWord(
+      ctx,
+      words[wordIndex],
+      x,
+      y,
+      fontSize,
+      animation,
+      lyricEffects,
+      palette,
+      effectFrame,
+      timeSec,
+      lineId,
+      lineCharCount,
+      charIndexOffset,
+    );
   });
 
   ctx.restore();

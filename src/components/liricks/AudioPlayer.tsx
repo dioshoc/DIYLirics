@@ -4,6 +4,7 @@ import { useAudioWaveformPeaks } from '../../hooks/useAudioWaveformPeaks';
 import { ClipRangeTimeline } from '../shared/ClipRangeTimeline';
 import { SimpleWaveformSeek } from '../shared/SimpleWaveformSeek';
 import { formatTimeSec } from '../../utils/time';
+import { clampBackgroundMediaClipSettings } from '../../utils/backgroundMediaClip';
 import { clampTiktokClipSettings } from '../../utils/tiktokExportWindow';
 import styles from './AudioPlayer.module.scss';
 
@@ -11,6 +12,15 @@ export type AudioPlayerClipConfig = {
   contentEndSec: number;
   clipStartSec: number;
   clipDurationSec: number;
+  onClipWindowChange: (startSec: number, durationSec: number) => void;
+};
+
+export type AudioPlayerMediaClipConfig = {
+  contentEndSec: number;
+  mediaDurationSec: number;
+  clipStartSec: number;
+  clipDurationSec: number;
+  playheadSec: number;
   onClipWindowChange: (startSec: number, durationSec: number) => void;
 };
 
@@ -22,6 +32,7 @@ type AudioPlayerProps = {
   audioRefExternal?: React.RefObject<HTMLAudioElement | null>;
   embedded?: boolean;
   clipConfig?: AudioPlayerClipConfig | null;
+  mediaClipConfig?: AudioPlayerMediaClipConfig | null;
 };
 
 export const AudioPlayer = ({
@@ -32,6 +43,7 @@ export const AudioPlayer = ({
   audioRefExternal,
   embedded = false,
   clipConfig = null,
+  mediaClipConfig = null,
 }: AudioPlayerProps) => {
   const internalRef = useRef<HTMLAudioElement>(null);
   const audioRef = audioRefExternal ?? internalRef;
@@ -172,8 +184,11 @@ export const AudioPlayer = ({
   const { peaks: waveformPeaks, isLoading: isWaveformLoading } =
     useAudioWaveformPeaks(src);
 
+  const hasVideoTrack = Boolean(mediaClipConfig);
   const playerClassName = embedded
-    ? `${styles.player} ${styles.playerEmbedded}`
+    ? `${styles.player} ${styles.playerEmbedded}${
+        hasVideoTrack ? ` ${styles.playerWithVideoTrack}` : ''
+      }`
     : styles.player;
 
   const clipMeta =
@@ -181,6 +196,36 @@ export const AudioPlayer = ({
       ? `Clip ${formatTimeSec(clipWindow.clipStartSec)}–${formatTimeSec(
           clipWindow.clipStartSec + clipWindow.clipDurationSec,
         )} (${Math.round(clipWindow.clipDurationSec)}s)`
+      : null;
+
+  const clampMediaClipWindow = useCallback(
+    (timelineEndSec: number, duration: number, start: number) => {
+      if (!mediaClipConfig) {
+        return { clipStartSec: start, clipDurationSec: duration };
+      }
+      return clampBackgroundMediaClipSettings(
+        timelineEndSec,
+        mediaClipConfig.mediaDurationSec,
+        duration,
+        start,
+      );
+    },
+    [mediaClipConfig],
+  );
+
+  const mediaClipWindow = mediaClipConfig
+    ? clampMediaClipWindow(
+        mediaClipConfig.contentEndSec,
+        mediaClipConfig.clipDurationSec,
+        mediaClipConfig.clipStartSec,
+      )
+    : null;
+
+  const mediaClipMeta =
+    mediaClipWindow && mediaClipConfig
+      ? `Video ${formatTimeSec(mediaClipWindow.clipStartSec)}–${formatTimeSec(
+          mediaClipWindow.clipStartSec + mediaClipWindow.clipDurationSec,
+        )} (${Math.round(mediaClipWindow.clipDurationSec)}s)`
       : null;
 
   return (
@@ -202,28 +247,30 @@ export const AudioPlayer = ({
           {isPlaying ? '❚❚' : '▶'}
         </button>
 
-        {clipConfig && timelineEndSec ? (
-          <ClipRangeTimeline
-            contentEndSec={clipConfig.contentEndSec}
-            clipStartSec={clipConfig.clipStartSec}
-            clipDurationSec={clipConfig.clipDurationSec}
-            playheadSec={currentSec}
-            waveformPeaks={waveformPeaks}
-            isWaveformLoading={isWaveformLoading}
-            onClipWindowChange={clipConfig.onClipWindowChange}
-            onPlayheadSeek={seekTo}
-          />
-        ) : timelineEndSec ? (
-          <SimpleWaveformSeek
-            durationSec={timelineEndSec}
-            playheadSec={currentSec}
-            peaks={waveformPeaks}
-            isWaveformLoading={isWaveformLoading}
-            onSeek={seekTo}
-          />
-        ) : (
-          <div className={styles.seekPlaceholder} aria-hidden />
-        )}
+        <div className={styles.timelineSlot}>
+          {clipConfig && timelineEndSec ? (
+            <ClipRangeTimeline
+              contentEndSec={clipConfig.contentEndSec}
+              clipStartSec={clipConfig.clipStartSec}
+              clipDurationSec={clipConfig.clipDurationSec}
+              playheadSec={currentSec}
+              waveformPeaks={waveformPeaks}
+              isWaveformLoading={isWaveformLoading}
+              onClipWindowChange={clipConfig.onClipWindowChange}
+              onPlayheadSeek={seekTo}
+            />
+          ) : timelineEndSec ? (
+            <SimpleWaveformSeek
+              durationSec={timelineEndSec}
+              playheadSec={currentSec}
+              peaks={waveformPeaks}
+              isWaveformLoading={isWaveformLoading}
+              onSeek={seekTo}
+            />
+          ) : (
+            <div className={styles.seekPlaceholder} aria-hidden />
+          )}
+        </div>
 
         <div className={styles.timeBlock}>
           <span className={styles.time}>
@@ -234,6 +281,38 @@ export const AudioPlayer = ({
           ) : null}
         </div>
       </div>
+
+      {mediaClipConfig && mediaClipConfig.contentEndSec > 0 ? (
+        <div className={styles.mediaRow}>
+          <span className={styles.mediaRowLabel} aria-hidden>▦</span>
+          <div className={styles.timelineSlot}>
+          <ClipRangeTimeline
+            contentEndSec={mediaClipConfig.contentEndSec}
+            clipStartSec={mediaClipConfig.clipStartSec}
+            clipDurationSec={mediaClipConfig.clipDurationSec}
+            playheadSec={mediaClipConfig.playheadSec}
+            waveformPeaks={null}
+            clipDurationMinSec={1}
+            clipDurationMaxSec={Math.min(
+              mediaClipConfig.mediaDurationSec,
+              mediaClipConfig.contentEndSec,
+            )}
+            clampClipWindow={clampMediaClipWindow}
+            onClipWindowChange={mediaClipConfig.onClipWindowChange}
+            onPlayheadSeek={seekTo}
+          />
+          </div>
+          <div className={styles.mediaTimeBlock}>
+            <span className={styles.time}>
+              {formatTimeSec(mediaClipConfig.playheadSec)} /{' '}
+              {formatTimeSec(mediaClipConfig.contentEndSec)}
+            </span>
+            {mediaClipMeta ? (
+              <span className={styles.clipMeta}>{mediaClipMeta}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

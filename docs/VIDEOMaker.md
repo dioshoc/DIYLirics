@@ -21,7 +21,7 @@
 | WorkflowHeader | **Download video** на этом шаге (см. §Экспорт MP4). |
 | Колонка настроек | ~280px, скролл, border справа. |
 | Preview | Центр области main, **на всю доступную высоту**; aspect ratio по формату. |
-| Bottom dock | `AudioPlayer` fixed снизу; `previewTimeSec` для seek bar и video bg; **анимация текста** — отдельно через `requestAnimationFrame` (см. §Preview). |
+| Bottom dock | `AudioPlayer` + **waveform-таймлайн** (`WaveformBars`); TikTok — **ClipRangeTimeline** на том же плеере; см. §Preview playback. |
 
 Файлы: `VideomakerPanel.tsx`, `VideomakerPanel.module.scss`, `VideoPreviewFrame.tsx`.
 
@@ -40,6 +40,21 @@
 
 - UI: **Video format** — два варианта (radio-поведение).
 - Preview меняет aspect ratio (`previewFrameWrap[data-format]`).
+
+### TikTok short clip (Reels / Shorts)
+
+Только при `formatId === 'tiktok'`. Настройка **на нижнем плеере**, не в сайдбаре.
+
+| Поле store | Описание |
+|------------|----------|
+| `tiktokClipDurationSec` | Длина экспорта **15–45 s** (default **30**), константы `tiktokClip.ts` |
+| `tiktokClipStartSec` | Начало отрезка на **полной** длительности аудио (`track.durationSec`) |
+
+UI: `ClipRangeTimeline` — waveform на всю песню; синяя рамка — клип; **‹ ›** — длина (resize), середина — drag; клик/drag playhead — seek. **Play** воспроизводит только интервал клипа (стоп в конце).
+
+Логика: `clampTiktokClipSettings`, `resolveTiktokExportWindow` (`tiktokExportWindow.ts`). Экспорт: `exportLyricVideo.ts` — `sliceAudioBuffer`, кадры по `lineStart + localTime`; границы клипа — длина **файла**, не `lyricsEndTimeSec`.
+
+Persistence: `tiktokClipDurationSec`, `tiktokClipStartSec` в `videoSettings` (localStorage).
 
 ---
 
@@ -81,10 +96,13 @@ Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKin
 | `lyricVerticalAlign` | `top` \| `center` \| `bottom` | Lyric position → Vertical |
 | `lyricHorizontalAlign` | `left` \| `center` \| `right` | Lyric position → Horizontal |
 | `lyricFontSize` | `small` \| `medium` \| `large` | Lyric position → **Text size** |
-| `lyricFontId` | см. каталог ниже | **Lyric font** → плитки с превью **Aa** (общий список, A→Z) |
+| `lyricFontId` | см. каталог ниже | **Lyric font** (блок **после** Lyric position) |
 | `lyricAnimationPreset` | см. §Lyric entrance | **Lyric entrance** — плитки + **No animation** (иконка ban) |
+| `tiktokClipDurationSec` / `tiktokClipStartSec` | 15–45 s, start ≥ 0 | Только TikTok — **нижний плеер**, §TikTok short clip |
 
-Константы: `src/constants/videoLyricLayout.ts`, `src/constants/videoLyricFontSize.ts`, `src/constants/videoLyricFonts.ts`, `src/constants/videoLyricAnimation.ts`.
+Константы: `src/constants/videoLyricLayout.ts`, `src/constants/videoLyricFontSize.ts`, `src/constants/videoLyricFonts.ts`, `src/constants/videoLyricAnimation.ts`, `src/constants/tiktokClip.ts`.
+
+**Порядок блоков в сайдбаре (сверху вниз после cover):** Lyric position → Lyric font → Lyric entrance.
 
 ### Каталог шрифтов (Google Fonts)
 
@@ -146,6 +164,11 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 | Elastic | elastic scale-in | elastic shrink + fade |
 | Glitch | jitter-in | jitter-out + fade |
 | Zoom blur | zoom out + blur-in | zoom in + blur-out + fade |
+| Random words · fade | — | слова по одному: случайный **момент** старта в коротком burst, быстрый fade (база `fade_in`) |
+| Random words · rise | — | то же, база `rise_up` |
+| Random words · pop | — | то же, база `pop` |
+
+**Random words:** порядок появления **не** по тексту — у каждого слова свой offset в окне ~0.26–0.65 s (масштаб `WORD_RANDOM_TIMING_SCALE` ≈ 1.3), вход слова ~0.23 s; сид от `lineId` (preview = MP4). Пока burst не завершён, строка читается с трудом. Реализация: `lyricWordAnimation.ts`, `splitLyricIntoWords`; preview — `AnimatedPreviewLyric` (span на слово); MP4 — `drawWordAnimatedLyricInBox` в `canvasDraw.ts`.
 
 ### Реализация (preview + MP4)
 
@@ -155,7 +178,7 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 | Активная строка + границы | `src/utils/activeLyricLine.ts` — `lineStartSec`, `lineEndSec` |
 | Preview (DOM) | `AnimatedPreviewLyric.tsx` — inline `transform` / `opacity` / `filter` из `lyricAnimationTransformToStyle` |
 | Плавное время в preview | `src/hooks/useAudioDrivenTimeSec.ts` — при play **rAF** + `audio.currentTime` (~60 fps); на паузе/seek — `previewTimeSec` с плеера (событие `timeupdate` ~4 Hz недостаточно для анимации) |
-| MP4 | `drawFrame.ts` → `drawLyricInBox` с тем же `getLyricAnimationTransform` |
+| MP4 | `drawFrame.ts` → `drawLyricInBox` / `drawWordAnimatedLyricInBox` (`drawLyricForRuntime`) |
 | Плитки пикера | `LyricAnimation.module.scss` — enter keyframes + `*-loop` для превью; `lyricAnimationClass.ts` |
 
 **Ограничение:** canvas-рендер приближён к CSS preview (blur/transform вокруг центра бокса текста); pixel-perfect не гарантируется.
@@ -168,6 +191,14 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 
 - Рендерится **рядом** с кадром, **вне** `[data-videomaker-export-root]`.
 - В **MP4 не входит**.
+
+---
+
+## Preview playback (нижний dock)
+
+- **Liricks и Videomaker:** `AudioPlayer` с `SimpleWaveformSeek` — столбики громкости на **всю** длину трека (`computeWaveformPeaks`, RMS + нормализация по перцентилю).
+- Seek: клик и **перетаскивание** playhead (`usePointerTimelineSeek`).
+- **Videomaker + TikTok:** `clipConfig` → `ClipRangeTimeline` вместо простого seek (см. §TikTok short clip).
 
 ---
 
@@ -196,7 +227,7 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 **Параметры:**
 
 - 30 fps, офлайн-цикл по кадрам (без реального воспроизведения во время кодирования).
-- Длительность: `lyricsEndTimeSec` ?? `durationSec` ?? длина декодированного аудио.
+- Длительность: **YouTube** — `lyricsEndTimeSec` ?? `durationSec` ?? декодированное аудио; **TikTok** — длина клипа (`resolveTiktokExportWindow` по полному `decodedAudio.duration`).
 - Для video-фона: `seekBackgroundVideo` на каждый кадр.
 - Имя файла: `{Song title}.mp4` (`buildVideoDownloadFileName` в `exportLyricVideo.ts`).
 - Метаданные MP4: title / artist из `TrackMeta`.
@@ -229,7 +260,7 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 
 ## Persistence
 
-В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`; blob custom bg — IndexedDB.
+В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`, `tiktokClipDurationSec`, `tiktokClipStartSec`, `showTrackInfoUnderCover`; blob custom bg — IndexedDB.
 
 Невалидный `lyricAnimationPreset` после смены каталога → fallback `none` (`isLyricAnimationPresetId` в `sessionPersistence.ts`).
 
@@ -248,3 +279,7 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-05 | **Lyric entrance:** 10 пресетов + No animation (плитка ban); вход/выход 0.45 s; preview (rAF) + MP4 (`lyricAnimationTransform.ts`). |
 | 2026-10-05 | **Scale in** exit: увеличение + blur + fade. Preview: `useAudioDrivenTimeSec` вместо `timeupdate` для плавности. |
 | 2026-10-07 | **Export overlay:** после MP4 остаётся открытым до × / Escape; Boosty + Band.link с QR; `projectSupport.ts`. |
+| 2026-10-13 | **TikTok short clip** на плеере (15–45 s); экспорт среза; `tiktokExportWindow.ts`. |
+| 2026-10-13 | **Waveform** на таймлайне плеера; drag seek playhead. |
+| 2026-10-13 | **Random words** (fade / rise / pop); `lyricWordAnimation.ts`. |
+| 2026-10-13 | Сайдбар: Lyric position перед Lyric font. |

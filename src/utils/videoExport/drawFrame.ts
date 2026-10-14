@@ -13,10 +13,18 @@ import type {
   LyricVerticalAlign,
 } from '../../constants/videoLyricLayout';
 import type { LyricAnimationPresetId } from '../../constants/videoLyricAnimation';
+import {
+  resolveLyricEffectPalette,
+  type LyricEffectColorSettings,
+} from '../../constants/lyricEffectColors';
+import type { LyricVisualEffects } from '../../constants/videoLyricEffects';
+import { drawLyricEffectBackgroundTint } from '../lyricEffectBackgroundTint';
 import type { YoutubeCoverSide } from '../../constants/youtubeCoverLayout';
 import type { LyricsProject, VideoBackgroundSource } from '../../types/session';
+import { resolveBackgroundMediaPlaybackTimeSec } from '../backgroundMediaClip';
 import { getActiveLyricStateAtTime } from '../activeLyricLine';
 import { getLyricAnimationTransform } from '../lyricAnimationTransform';
+import { isWordRandomAnimationPreset } from '../lyricWordAnimation';
 import type { ResolvedVideoBackground } from '../videoBackground';
 import { formatTrackInfoLabel } from '../formatTrackInfoLabel';
 import {
@@ -24,8 +32,10 @@ import {
   drawLyricInBox,
   drawRoundedImage,
   drawTrackInfoUnderCover,
+  drawWordAnimatedLyricInBox,
 } from './canvasDraw';
 import type { ExportMediaAssets } from './loadAssets';
+import { seekBackgroundVideo } from './loadAssets';
 import { isCoverSplitLayout } from './isCoverSplit';
 
 export type DrawFrameConfig = {
@@ -42,6 +52,11 @@ export type DrawFrameConfig = {
   lyricFontSize: LyricFontSize;
   lyricFontId: LyricFontId;
   lyricAnimationPreset: LyricAnimationPresetId;
+  lyricEffects: LyricVisualEffects;
+  lyricEffectColor: LyricEffectColorSettings;
+  customBackgroundClipStartSec: number;
+  customBackgroundClipDurationSec: number;
+  customBackgroundDurationSec: number | null;
   showTrackInfoUnderCover: boolean;
   project: LyricsProject;
   lyricsEndTimeSec: number | null;
@@ -50,8 +65,89 @@ export type DrawFrameConfig = {
 type DrawFrameRuntime = {
   timeSec: number;
   lyricText: string;
+  lineId: string | null;
   lineStartSec: number | null;
   lineEndSec: number | null;
+};
+
+type LyricBoxAlign = ReturnType<typeof lyricAlign>;
+
+const drawLyricForRuntime = (
+  ctx: CanvasRenderingContext2D,
+  config: DrawFrameConfig,
+  runtime: DrawFrameRuntime,
+  lyricBox: { x: number; y: number; width: number; height: number },
+  align: LyricBoxAlign,
+  fontSize: number,
+  fontFamily: string,
+  fontWeight: number,
+): void => {
+  const { lyricText, lineId, lineStartSec, lineEndSec, timeSec } = runtime;
+  const preset = config.lyricAnimationPreset;
+  const palette = resolveLyricEffectPalette(config.lyricEffectColor);
+
+  if (
+    isWordRandomAnimationPreset(preset) &&
+    lineId &&
+    lineStartSec !== null &&
+    lyricText
+  ) {
+    drawWordAnimatedLyricInBox(
+      ctx,
+      lyricText,
+      lineId,
+      lineStartSec,
+      lineEndSec,
+      timeSec,
+      preset,
+      lyricBox,
+      align,
+      fontSize,
+      fontFamily,
+      fontWeight,
+      config.lyricEffects,
+      palette,
+      { width: config.width, height: config.height },
+    );
+    return;
+  }
+
+  const animation = getLyricAnimationTransform(
+    preset,
+    timeSec,
+    lineStartSec,
+    lineEndSec,
+    fontSize,
+  );
+
+  drawLyricInBox(
+    ctx,
+    lyricText,
+    lyricBox,
+    align,
+    fontSize,
+    fontFamily,
+    fontWeight,
+    animation,
+    config.lyricEffects,
+    palette,
+    { width: config.width, height: config.height },
+    timeSec,
+    lineId,
+  );
+};
+
+const applyLyricEffectBackgroundTint = (
+  ctx: CanvasRenderingContext2D,
+  config: DrawFrameConfig,
+): void => {
+  drawLyricEffectBackgroundTint(
+    ctx,
+    config.width,
+    config.height,
+    config.lyricEffects,
+    config.lyricEffectColor,
+  );
 };
 
 const drawCoverTrackInfoIfEnabled = (
@@ -88,19 +184,6 @@ const drawCoverTrackInfoIfEnabled = (
     fontFamily,
   );
 };
-
-const resolveLyricAnimation = (
-  config: DrawFrameConfig,
-  runtime: DrawFrameRuntime,
-  fontSize: number,
-) =>
-  getLyricAnimationTransform(
-    config.lyricAnimationPreset,
-    runtime.timeSec,
-    runtime.lineStartSec,
-    runtime.lineEndSec,
-    fontSize,
-  );
 
 const drawBlurredCoverBackdrop = (
   ctx: CanvasRenderingContext2D,
@@ -158,7 +241,6 @@ const drawYoutubeCoverSplit = (
   assets: ExportMediaAssets,
   runtime: DrawFrameRuntime,
 ): void => {
-  const { lyricText } = runtime;
   const { width, height, youtubeCoverSide, lyricVerticalAlign, lyricHorizontalAlign } =
     config;
   const cover = assets.coverImage;
@@ -167,6 +249,7 @@ const drawYoutubeCoverSplit = (
   }
 
   drawBlurredCoverBackdrop(ctx, cover, width, height);
+  applyLyricEffectBackgroundTint(ctx, config);
 
   const padX = width * 0.07;
   const padY = height * 0.08;
@@ -194,33 +277,33 @@ const drawYoutubeCoverSplit = (
     config.lyricFontSize,
   );
   const fontFamily = getLyricFontCssFamily(config.lyricFontId);
-  const animation = resolveLyricAnimation(config, runtime, fontSize);
+  const align = lyricAlign(lyricVerticalAlign, lyricHorizontalAlign);
 
   if (youtubeCoverSide === 'left') {
     drawRoundedImage(ctx, cover, cardXLeft, cardY, cardSize, radius);
     drawCoverTrackInfoIfEnabled(ctx, config, cardXLeft, cardY, cardSize);
-    drawLyricInBox(
+    drawLyricForRuntime(
       ctx,
-      lyricText,
+      config,
+      runtime,
       lyricBoxRight,
-      lyricAlign(lyricVerticalAlign, lyricHorizontalAlign),
+      align,
       fontSize,
       fontFamily,
       700,
-      animation,
     );
     return;
   }
 
-  drawLyricInBox(
+  drawLyricForRuntime(
     ctx,
-    lyricText,
+    config,
+    runtime,
     lyricBoxLeft,
-    lyricAlign(lyricVerticalAlign, lyricHorizontalAlign),
+    align,
     fontSize,
     fontFamily,
     700,
-    animation,
   );
   drawRoundedImage(ctx, cover, cardXRight, cardY, cardSize, radius);
   drawCoverTrackInfoIfEnabled(ctx, config, cardXRight, cardY, cardSize);
@@ -232,7 +315,6 @@ const drawTiktokCoverSplit = (
   assets: ExportMediaAssets,
   runtime: DrawFrameRuntime,
 ): void => {
-  const { lyricText } = runtime;
   const { width, height, tiktokCoverPosition, lyricVerticalAlign, lyricHorizontalAlign } =
     config;
   const cover = assets.coverImage;
@@ -241,6 +323,7 @@ const drawTiktokCoverSplit = (
   }
 
   drawBlurredCoverBackdrop(ctx, cover, width, height);
+  applyLyricEffectBackgroundTint(ctx, config);
 
   const cardSize = Math.min(width * 0.612, height * 0.357);
   const cardX = (width - cardSize) / 2;
@@ -274,16 +357,15 @@ const drawTiktokCoverSplit = (
 
   const fontSize = scaleLyricFontPx(height * 0.036, config.lyricFontSize);
   const fontFamily = getLyricFontCssFamily(config.lyricFontId);
-  const animation = resolveLyricAnimation(config, runtime, fontSize);
-  drawLyricInBox(
+  drawLyricForRuntime(
     ctx,
-    lyricText,
+    config,
+    runtime,
     lyricBox,
     lyricAlign(lyricVerticalAlign, lyricHorizontalAlign),
     fontSize,
     fontFamily,
     700,
-    animation,
   );
 };
 
@@ -293,11 +375,11 @@ const drawFullLayout = (
   assets: ExportMediaAssets,
   runtime: DrawFrameRuntime,
 ): void => {
-  const { lyricText } = runtime;
   const { width, height, formatId, lyricVerticalAlign, lyricHorizontalAlign } =
     config;
 
   drawFullBackground(ctx, assets, width, height);
+  applyLyricEffectBackgroundTint(ctx, config);
 
   const padX = width * 0.08;
   const padTop = formatId === 'tiktok' ? height * 0.14 : height * 0.1;
@@ -316,17 +398,15 @@ const drawFullLayout = (
       : Math.min(width * 0.047, height * 0.0765);
   const fontSize = scaleLyricFontPx(baseFontSize, config.lyricFontSize);
   const fontFamily = getLyricFontCssFamily(config.lyricFontId);
-  const animation = resolveLyricAnimation(config, runtime, fontSize);
-
-  drawLyricInBox(
+  drawLyricForRuntime(
     ctx,
-    lyricText,
+    config,
+    runtime,
     lyricBox,
     lyricAlign(lyricVerticalAlign, lyricHorizontalAlign),
     fontSize,
     fontFamily,
     formatId === 'tiktok' ? 700 : 600,
-    animation,
   );
 };
 
@@ -340,10 +420,14 @@ export const drawExportFrame = async (
   ctx.clearRect(0, 0, width, height);
 
   if (assets.backgroundVideo) {
-    assets.backgroundVideo.currentTime = Math.min(
+    const mediaDurationSec = config.customBackgroundDurationSec ?? 0;
+    const mediaTimeSec = resolveBackgroundMediaPlaybackTimeSec(
       timeSec,
-      assets.backgroundVideo.duration || timeSec,
+      config.customBackgroundClipStartSec,
+      config.customBackgroundClipDurationSec,
+      mediaDurationSec,
     );
+    await seekBackgroundVideo(assets.backgroundVideo, mediaTimeSec);
   }
 
   const lyricState = getActiveLyricStateAtTime(
@@ -354,6 +438,7 @@ export const drawExportFrame = async (
   const runtime: DrawFrameRuntime = {
     timeSec,
     lyricText: lyricState.text,
+    lineId: lyricState.lineId,
     lineStartSec: lyricState.lineStartSec,
     lineEndSec: lyricState.lineEndSec,
   };

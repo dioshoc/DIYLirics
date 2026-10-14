@@ -1,7 +1,11 @@
 import type { CSSProperties } from 'react';
 
-import type { LyricAnimationPresetId } from '../constants/videoLyricAnimation';
+import type {
+  LyricAnimationPresetId,
+  LyricLineAnimationPresetId,
+} from '../constants/videoLyricAnimation';
 import { LYRIC_ANIMATION_DURATION_SEC } from '../constants/videoLyricAnimation';
+import { isWordRandomAnimationPreset } from './lyricWordAnimation';
 
 export type LyricAnimationTransform = {
   opacity: number;
@@ -44,10 +48,7 @@ const withBase = (
   ...partial,
 });
 
-const enterCalculators: Record<
-  Exclude<LyricAnimationPresetId, 'none'>,
-  PresetCalculator
-> = {
+const enterCalculators: Record<LyricLineAnimationPresetId, PresetCalculator> = {
   fade_in: (_progress, eased) => withBase({ opacity: eased }),
   rise_up: (_progress, eased, fontSize) =>
     withBase({ opacity: eased, translateY: (1 - eased) * fontSize * 0.55 }),
@@ -94,10 +95,7 @@ const enterCalculators: Record<
     }),
 };
 
-const exitCalculators: Record<
-  Exclude<LyricAnimationPresetId, 'none'>,
-  PresetCalculator
-> = {
+const exitCalculators: Record<LyricLineAnimationPresetId, PresetCalculator> = {
   fade_in: (_progress, eased) => withBase({ opacity: 1 - eased }),
   rise_up: (_progress, eased, fontSize) =>
     withBase({
@@ -159,7 +157,7 @@ const exitCalculators: Record<
 };
 
 const computeEnter = (
-  preset: Exclude<LyricAnimationPresetId, 'none'>,
+  preset: LyricLineAnimationPresetId,
   progress: number,
   fontSize: number,
 ): LyricAnimationTransform => {
@@ -168,12 +166,16 @@ const computeEnter = (
 };
 
 const computeExit = (
-  preset: Exclude<LyricAnimationPresetId, 'none'>,
+  preset: LyricLineAnimationPresetId,
   progress: number,
   fontSize: number,
 ): LyricAnimationTransform => {
   const eased = easeOutCubic(clamp01(progress));
   return exitCalculators[preset](clamp01(progress), eased, fontSize);
+};
+
+export type LyricAnimationTimingOptions = {
+  enterDurationSec?: number;
 };
 
 export const getLyricAnimationTransform = (
@@ -182,7 +184,12 @@ export const getLyricAnimationTransform = (
   lineStartSec: number | null,
   lineEndSec: number | null,
   fontSize: number,
+  timing?: LyricAnimationTimingOptions,
 ): LyricAnimationTransform => {
+  if (isWordRandomAnimationPreset(preset)) {
+    return IDENTITY;
+  }
+
   if (preset === 'none' || lineStartSec === null) {
     return IDENTITY;
   }
@@ -192,7 +199,7 @@ export const getLyricAnimationTransform = (
     return IDENTITY;
   }
 
-  const duration = LYRIC_ANIMATION_DURATION_SEC;
+  const duration = timing?.enterDurationSec ?? LYRIC_ANIMATION_DURATION_SEC;
   const hasLineEnd = lineEndSec !== null && Number.isFinite(lineEndSec);
   const remaining = hasLineEnd ? lineEndSec - timeSec : Number.POSITIVE_INFINITY;
 

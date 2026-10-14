@@ -16,7 +16,7 @@ import { resolveTiktokExportWindow } from '../tiktokExportWindow';
 import { decodeAudioFromUrl, sliceAudioBuffer } from './decodeAudio';
 import { ensureLyricFontLoaded } from './ensureLyricFontLoaded';
 import { drawExportFrame } from './drawFrame';
-import { loadExportMediaAssets, seekBackgroundVideo } from './loadAssets';
+import { loadExportMediaAssets } from './loadAssets';
 
 export type ExportLyricVideoInput = {
   track: TrackMeta;
@@ -32,7 +32,7 @@ export type ExportLyricVideoProgress = {
   durationSec: number;
 };
 
-const EXPORT_FPS = 30;
+const EXPORT_FPS = 60;
 
 const INVALID_FILE_NAME_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g;
 
@@ -141,6 +141,14 @@ export const exportLyricVideo = async (
     lyricFontSize: input.videoSettings.lyricFontSize,
     lyricFontId: input.videoSettings.lyricFontId,
     lyricAnimationPreset: input.videoSettings.lyricAnimationPreset,
+    lyricEffects: input.videoSettings.lyricEffects,
+    lyricEffectColor: input.videoSettings.lyricEffectColor,
+    customBackgroundClipStartSec:
+      input.videoSettings.customBackgroundClipStartSec,
+    customBackgroundClipDurationSec:
+      input.videoSettings.customBackgroundClipDurationSec,
+    customBackgroundDurationSec:
+      input.videoSettings.customBackgroundDurationSec,
     showTrackInfoUnderCover: input.videoSettings.showTrackInfoUnderCover,
     project: input.project,
     lyricsEndTimeSec: input.lyricsEndTimeSec,
@@ -181,10 +189,6 @@ export const exportLyricVideo = async (
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
     const localTimeSec = Math.min(frameIndex / EXPORT_FPS, durationSec);
     const timelineTimeSec = exportWindow.startSec + localTimeSec;
-
-    if (assets.backgroundVideo) {
-      await seekBackgroundVideo(assets.backgroundVideo, timelineTimeSec);
-    }
 
     await drawExportFrame(ctx, timelineTimeSec, drawConfig, assets);
     await videoSource.add(localTimeSec, 1 / EXPORT_FPS, {

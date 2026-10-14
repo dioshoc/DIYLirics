@@ -46,12 +46,20 @@ export const loadExportMediaAssets = async (
   return { coverImage, backgroundImage, backgroundVideo: null };
 };
 
+/** Must be below one export frame step (1/60 s) so each encoded frame gets a fresh seek. */
+const SEEK_TIME_EPSILON_SEC = 1 / 240;
+
 export const seekBackgroundVideo = (
   video: HTMLVideoElement,
   timeSec: number,
 ): Promise<void> =>
   new Promise((resolve) => {
-    if (Math.abs(video.currentTime - timeSec) < 0.05) {
+    const clampedTime = Math.min(
+      Math.max(0, timeSec),
+      video.duration || timeSec,
+    );
+
+    if (Math.abs(video.currentTime - clampedTime) < SEEK_TIME_EPSILON_SEC) {
       resolve();
       return;
     }
@@ -62,5 +70,5 @@ export const seekBackgroundVideo = (
     };
 
     video.addEventListener('seeked', handleSeeked);
-    video.currentTime = Math.min(timeSec, video.duration || timeSec);
+    video.currentTime = clampedTime;
   });

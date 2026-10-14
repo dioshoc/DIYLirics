@@ -14,6 +14,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+}
+
+.timelineSlot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
 }
 
 .playButton {
@@ -73,8 +80,43 @@
 }
 
 .playerEmbedded {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 20px 14px;
   border: none;
   border-radius: 0;
   background: transparent;
+}
+
+.playerWithVideoTrack {
+  padding-bottom: 12px;
+}
+
+.mediaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-left: 2px;
+}
+
+.mediaRowLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: $color-text-muted;
+}
+
+.mediaTimeBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 140px;
+  flex-shrink: 0;
 }

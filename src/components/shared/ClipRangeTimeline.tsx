@@ -20,6 +20,13 @@ export type ClipRangeTimelineProps = {
   playheadSec: number;
   waveformPeaks: number[] | null;
   isWaveformLoading?: boolean;
+  clipDurationMinSec?: number;
+  clipDurationMaxSec?: number;
+  clampClipWindow?: (
+    contentEndSec: number,
+    clipDurationSec: number,
+    clipStartSec: number,
+  ) => { clipStartSec: number; clipDurationSec: number };
   onClipWindowChange: (startSec: number, durationSec: number) => void;
   onPlayheadSeek: (timeSec: number) => void;
 };
@@ -50,6 +57,9 @@ export const ClipRangeTimeline = ({
   playheadSec,
   waveformPeaks,
   isWaveformLoading = false,
+  clipDurationMinSec = TIKTOK_CLIP_DURATION_MIN_SEC,
+  clipDurationMaxSec = TIKTOK_CLIP_DURATION_MAX_SEC,
+  clampClipWindow,
   onClipWindowChange,
   onPlayheadSeek,
 }: ClipRangeTimelineProps) => {
@@ -57,8 +67,16 @@ export const ClipRangeTimeline = ({
   const dragRef = useRef<DragState | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const { clipStartSec: start, clipDurationSec: duration } =
-    clampTiktokClipSettings(contentEndSec, clipDurationSec, clipStartSec);
+  const clampWindow =
+    clampClipWindow ??
+    ((contentEnd, duration, start) =>
+      clampTiktokClipSettings(contentEnd, duration, start));
+
+  const { clipStartSec: start, clipDurationSec: duration } = clampWindow(
+    contentEndSec,
+    clipDurationSec,
+    clipStartSec,
+  );
   const startPercent = contentEndSec > 0 ? (start / contentEndSec) * 100 : 0;
   const widthPercent = contentEndSec > 0 ? (duration / contentEndSec) * 100 : 100;
   const playheadPercent =
@@ -69,14 +87,10 @@ export const ClipRangeTimeline = ({
 
   const applyWindow = useCallback(
     (nextStart: number, nextDuration: number) => {
-      const clamped = clampTiktokClipSettings(
-        contentEndSec,
-        nextDuration,
-        nextStart,
-      );
+      const clamped = clampWindow(contentEndSec, nextDuration, nextStart);
       onClipWindowChange(clamped.clipStartSec, clamped.clipDurationSec);
     },
-    [contentEndSec, onClipWindowChange],
+    [clampWindow, contentEndSec, onClipWindowChange],
   );
 
   const {
@@ -130,8 +144,8 @@ export const ClipRangeTimeline = ({
       rect,
       contentEndSec,
     );
-    const durationMin = Math.min(TIKTOK_CLIP_DURATION_MIN_SEC, contentEndSec);
-    const durationMax = Math.min(TIKTOK_CLIP_DURATION_MAX_SEC, contentEndSec);
+    const durationMin = Math.min(clipDurationMinSec, contentEndSec);
+    const durationMax = Math.min(clipDurationMaxSec, contentEndSec);
 
     if (drag.mode === 'move') {
       const delta = timeSec - drag.anchorTimeSec;

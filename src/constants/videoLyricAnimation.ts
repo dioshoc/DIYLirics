@@ -9,13 +9,21 @@ export type LyricAnimationPresetId =
   | 'bounce'
   | 'elastic'
   | 'glitch'
-  | 'zoom_blur';
+  | 'zoom_blur'
+  | 'words_random_fade'
+  | 'words_random_rise'
+  | 'words_random_pop';
 
 export const LYRIC_ANIMATION_DURATION_SEC = 0.45;
 
 export type LyricAnimationPresetIdAnimated = Exclude<
   LyricAnimationPresetId,
   'none'
+>;
+
+export type LyricLineAnimationPresetId = Exclude<
+  LyricAnimationPresetId,
+  'none' | 'words_random_fade' | 'words_random_rise' | 'words_random_pop'
 >;
 
 export const LYRIC_ANIMATION_PRESET_ORDER: LyricAnimationPresetIdAnimated[] = [
@@ -29,6 +37,9 @@ export const LYRIC_ANIMATION_PRESET_ORDER: LyricAnimationPresetIdAnimated[] = [
   'elastic',
   'glitch',
   'zoom_blur',
+  'words_random_fade',
+  'words_random_rise',
+  'words_random_pop',
 ];
 
 export const LYRIC_ANIMATION_PRESET_LABELS: Record<
@@ -45,6 +56,9 @@ export const LYRIC_ANIMATION_PRESET_LABELS: Record<
   elastic: 'Elastic',
   glitch: 'Glitch',
   zoom_blur: 'Zoom blur',
+  words_random_fade: 'Random words · fade',
+  words_random_rise: 'Random words · rise',
+  words_random_pop: 'Random words · pop',
 };
 
 export const DEFAULT_LYRIC_ANIMATION_PRESET: LyricAnimationPresetId = 'none';

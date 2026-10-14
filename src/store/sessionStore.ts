@@ -8,6 +8,14 @@ import {
   type LyricAnimationPresetId,
 } from '../constants/videoLyricAnimation';
 import {
+  DEFAULT_LYRIC_EFFECT_COLOR,
+  type LyricEffectColorSettings,
+} from '../constants/lyricEffectColors';
+import {
+  DEFAULT_LYRIC_VISUAL_EFFECTS,
+  type LyricVisualEffects,
+} from '../constants/videoLyricEffects';
+import {
   DEFAULT_LYRIC_FONT_ID,
   type LyricFontId,
 } from '../constants/videoLyricFonts';
@@ -30,6 +38,11 @@ import {
   lyricsProjectToLines,
 } from '../utils/importLyricsProject';
 import { nudgeTime } from '../utils/time';
+import {
+  clampBackgroundMediaClipSettings,
+  getDefaultBackgroundMediaClipDurationSec,
+} from '../utils/backgroundMediaClip';
+import { probeBackgroundMediaDurationSec } from '../utils/probeBackgroundMediaDuration';
 import { clampTiktokClipSettings } from '../utils/tiktokExportWindow';
 import { getCustomBackgroundKind } from '../utils/videoBackground';
 
@@ -67,8 +80,15 @@ type SessionState = {
   setLyricFontSize: (size: LyricFontSize) => void;
   setLyricFontId: (fontId: LyricFontId) => void;
   setLyricAnimationPreset: (preset: LyricAnimationPresetId) => void;
+  setLyricEffects: (effects: LyricVisualEffects) => void;
+  setLyricEffectColor: (color: LyricEffectColorSettings) => void;
   setShowTrackInfoUnderCover: (showTrackInfoUnderCover: boolean) => void;
   setCustomBackgroundFile: (file: File | null) => void;
+  setCustomBackgroundMediaClipWindow: (
+    clipStartSec: number,
+    clipDurationSec: number,
+  ) => void;
+  setCustomBackgroundMediaDurationSec: (durationSec: number) => void;
 };
 
 const initialTrack: TrackMeta = {
@@ -91,12 +111,17 @@ const initialVideoSettings: VideoSettings = {
   lyricFontSize: 'medium',
   lyricFontId: DEFAULT_LYRIC_FONT_ID,
   lyricAnimationPreset: DEFAULT_LYRIC_ANIMATION_PRESET,
+  lyricEffects: { ...DEFAULT_LYRIC_VISUAL_EFFECTS },
+  lyricEffectColor: { ...DEFAULT_LYRIC_EFFECT_COLOR },
   tiktokClipDurationSec: TIKTOK_CLIP_DURATION_DEFAULT_SEC,
   tiktokClipStartSec: 0,
   showTrackInfoUnderCover: false,
   customBackgroundFile: null,
   customBackgroundObjectUrl: null,
   customBackgroundKind: null,
+  customBackgroundDurationSec: null,
+  customBackgroundClipStartSec: 0,
+  customBackgroundClipDurationSec: 0,
 };
 
 export const useSessionStore = create<SessionState>((set, get) => ({
@@ -175,9 +200,31 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   setDurationSec: (durationSec) =>
-    set((state) => ({
-      track: { ...state.track, durationSec },
-    })),
+    set((state) => {
+      const mediaDuration = state.videoSettings.customBackgroundDurationSec;
+      let videoSettings = state.videoSettings;
+      if (durationSec && mediaDuration && mediaDuration > 0) {
+        const clamped = clampBackgroundMediaClipSettings(
+          durationSec,
+          mediaDuration,
+          videoSettings.customBackgroundClipDurationSec ||
+            getDefaultBackgroundMediaClipDurationSec(
+              durationSec,
+              mediaDuration,
+            ),
+          videoSettings.customBackgroundClipStartSec,
+        );
+        videoSettings = {
+          ...videoSettings,
+          customBackgroundClipStartSec: clamped.clipStartSec,
+          customBackgroundClipDurationSec: clamped.clipDurationSec,
+        };
+      }
+      return {
+        track: { ...state.track, durationSec },
+        videoSettings,
+      };
+    }),
 
   setLyricsRawText: (text) => set({ lyricsRawText: text }),
 
@@ -407,6 +454,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       videoSettings: { ...state.videoSettings, lyricAnimationPreset },
     })),
 
+  setLyricEffects: (lyricEffects) =>
+    set((state) => ({
+      videoSettings: { ...state.videoSettings, lyricEffects },
+    })),
+
+  setLyricEffectColor: (lyricEffectColor) =>
+    set((state) => ({
+      videoSettings: { ...state.videoSettings, lyricEffectColor },
+    })),
+
   setShowTrackInfoUnderCover: (showTrackInfoUnderCover) =>
     set((state) => ({
       videoSettings: { ...state.videoSettings, showTrackInfoUnderCover },
@@ -425,6 +482,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
           customBackgroundFile: null,
           customBackgroundObjectUrl: null,
           customBackgroundKind: null,
+          customBackgroundDurationSec: null,
+          customBackgroundClipStartSec: 0,
+          customBackgroundClipDurationSec: 0,
         },
       }));
       return;
@@ -435,14 +495,104 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+
     set((state) => ({
       videoSettings: {
         ...state.videoSettings,
         backgroundSource: 'custom',
         customBackgroundFile: file,
-        customBackgroundObjectUrl: URL.createObjectURL(file),
+        customBackgroundObjectUrl: objectUrl,
         customBackgroundKind: kind,
+        customBackgroundDurationSec: null,
+        customBackgroundClipStartSec: 0,
+        customBackgroundClipDurationSec: 0,
       },
     }));
+
+    void probeBackgroundMediaDurationSec(file, objectUrl).then((durationSec) => {
+      set((state) => {
+        if (state.videoSettings.customBackgroundObjectUrl !== objectUrl) {
+          return state;
+        }
+        const timelineDurationSec =
+          state.track.durationSec ?? durationSec;
+        const defaultClipDuration = getDefaultBackgroundMediaClipDurationSec(
+          timelineDurationSec,
+          durationSec,
+        );
+        const clamped = clampBackgroundMediaClipSettings(
+          timelineDurationSec,
+          durationSec,
+          defaultClipDuration,
+          0,
+        );
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            customBackgroundDurationSec: durationSec,
+            customBackgroundClipStartSec: clamped.clipStartSec,
+            customBackgroundClipDurationSec: clamped.clipDurationSec,
+          },
+        };
+      });
+    });
   },
+
+  setCustomBackgroundMediaDurationSec: (customBackgroundDurationSec) =>
+    set((state) => {
+      const timelineDurationSec =
+        state.track.durationSec ?? customBackgroundDurationSec;
+      const clamped = clampBackgroundMediaClipSettings(
+        timelineDurationSec,
+        customBackgroundDurationSec,
+        state.videoSettings.customBackgroundClipDurationSec ||
+          getDefaultBackgroundMediaClipDurationSec(
+            timelineDurationSec,
+            customBackgroundDurationSec,
+          ),
+        state.videoSettings.customBackgroundClipStartSec,
+      );
+      return {
+        videoSettings: {
+          ...state.videoSettings,
+          customBackgroundDurationSec,
+          customBackgroundClipStartSec: clamped.clipStartSec,
+          customBackgroundClipDurationSec: clamped.clipDurationSec,
+        },
+      };
+    }),
+
+  setCustomBackgroundMediaClipWindow: (
+    customBackgroundClipStartSec,
+    customBackgroundClipDurationSec,
+  ) =>
+    set((state) => {
+      const mediaDuration = state.videoSettings.customBackgroundDurationSec;
+      if (!mediaDuration) {
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            customBackgroundClipStartSec,
+            customBackgroundClipDurationSec,
+          },
+        };
+      }
+
+      const timelineDurationSec = state.track.durationSec ?? mediaDuration;
+      const clamped = clampBackgroundMediaClipSettings(
+        timelineDurationSec,
+        mediaDuration,
+        customBackgroundClipDurationSec,
+        customBackgroundClipStartSec,
+      );
+
+      return {
+        videoSettings: {
+          ...state.videoSettings,
+          customBackgroundClipStartSec: clamped.clipStartSec,
+          customBackgroundClipDurationSec: clamped.clipDurationSec,
+        },
+      };
+    }),
 }));

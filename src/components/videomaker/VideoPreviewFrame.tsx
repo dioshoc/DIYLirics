@@ -12,6 +12,9 @@ import type { YoutubeCoverSide } from '../../constants/youtubeCoverLayout';
 import type { VideoBackgroundSource, LyricsProject } from '../../types/session';
 import type { ResolvedVideoBackground } from '../../utils/videoBackground';
 import type { LyricAnimationPresetId } from '../../constants/videoLyricAnimation';
+import type { LyricEffectColorSettings } from '../../constants/lyricEffectColors';
+import type { LyricVisualEffects } from '../../constants/videoLyricEffects';
+import { LyricEffectBackgroundTint } from './LyricEffectBackgroundTint';
 import { formatTrackInfoLabel } from '../../utils/formatTrackInfoLabel';
 import { AnimatedPreviewLyric } from './AnimatedPreviewLyric';
 import { VideoPreviewBackground } from './VideoPreviewBackground';
@@ -28,12 +31,15 @@ type VideoPreviewFrameProps = {
   youtubeCoverSide: YoutubeCoverSide;
   tiktokCoverPosition: TiktokCoverPosition;
   playbackTimeSec: number;
+  backgroundPlaybackTimeSec?: number;
   isPlaybackActive: boolean;
   lyricVerticalAlign: LyricVerticalAlign;
   lyricHorizontalAlign: LyricHorizontalAlign;
   lyricFontSize: LyricFontSize;
   lyricFontId: LyricFontId;
   lyricAnimationPreset: LyricAnimationPresetId;
+  lyricEffects: LyricVisualEffects;
+  lyricEffectColor: LyricEffectColorSettings;
   artist: string;
   title: string;
   showTrackInfoUnderCover: boolean;
@@ -59,12 +65,15 @@ export const VideoPreviewFrame = ({
   youtubeCoverSide,
   tiktokCoverPosition,
   playbackTimeSec,
+  backgroundPlaybackTimeSec,
   isPlaybackActive,
   lyricVerticalAlign,
   lyricHorizontalAlign,
   lyricFontSize,
   lyricFontId,
   lyricAnimationPreset,
+  lyricEffects,
+  lyricEffectColor,
   artist,
   title,
   showTrackInfoUnderCover,
@@ -80,6 +89,9 @@ export const VideoPreviewFrame = ({
       isPlaybackActive={isPlaybackActive}
       playbackTimeSec={playbackTimeSec}
       lyricFontSize={lyricFontSize}
+      lyricEffects={lyricEffects}
+      lyricEffectColor={lyricEffectColor}
+      videoFormatId={formatId}
     />
   );
   const lyricFontStyle = {
@@ -121,6 +133,10 @@ export const VideoPreviewFrame = ({
             alt=""
           />
           <div className={styles.coverSplitBgScrim} />
+          <LyricEffectBackgroundTint
+            effects={lyricEffects}
+            colorSettings={lyricEffectColor}
+          />
         </div>
         <div className={styles.coverSplitForeground}>
           <div className={styles.coverSplitCoverColumn}>
@@ -156,8 +172,12 @@ export const VideoPreviewFrame = ({
     >
       <VideoPreviewBackground
         background={background}
-        playbackTimeSec={playbackTimeSec}
+        playbackTimeSec={backgroundPlaybackTimeSec ?? playbackTimeSec}
         isPlaybackActive={isPlaybackActive}
+      />
+      <LyricEffectBackgroundTint
+        effects={lyricEffects}
+        colorSettings={lyricEffectColor}
       />
       <div className={styles.previewLyricOverlay}>
         {lyricElement(styles.previewLyric)}

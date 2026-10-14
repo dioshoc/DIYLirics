@@ -15,6 +15,9 @@ const ANIM_CLASS_MAP: Record<
   elastic: animStyles.animElastic,
   glitch: animStyles.animGlitch,
   zoom_blur: animStyles.animZoomBlur,
+  words_random_fade: animStyles.animFadeIn,
+  words_random_rise: animStyles.animRiseUp,
+  words_random_pop: animStyles.animPop,
 };
 
 const ANIM_LOOP_CLASS_MAP: Record<
@@ -31,6 +34,9 @@ const ANIM_LOOP_CLASS_MAP: Record<
   elastic: animStyles.animElasticLoop,
   glitch: animStyles.animGlitchLoop,
   zoom_blur: animStyles.animZoomBlurLoop,
+  words_random_fade: animStyles.animFadeInLoop,
+  words_random_rise: animStyles.animRiseUpLoop,
+  words_random_pop: animStyles.animPopLoop,
 };
 
 export const getLyricAnimationClasses = (

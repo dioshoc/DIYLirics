@@ -1,6 +1,8 @@
 import type { VideoFormatId } from '../constants/videoFormats';
 import type { TiktokCoverPosition } from '../constants/tiktokCoverLayout';
 import type { LyricAnimationPresetId } from '../constants/videoLyricAnimation';
+import type { LyricEffectColorSettings } from '../constants/lyricEffectColors';
+import type { LyricVisualEffects } from '../constants/videoLyricEffects';
 import type { LyricFontId } from '../constants/videoLyricFonts';
 import type { LyricFontSize } from '../constants/videoLyricFontSize';
 import type {
@@ -60,10 +62,15 @@ export type VideoSettings = {
   lyricFontSize: LyricFontSize;
   lyricFontId: LyricFontId;
   lyricAnimationPreset: LyricAnimationPresetId;
+  lyricEffects: LyricVisualEffects;
+  lyricEffectColor: LyricEffectColorSettings;
   tiktokClipDurationSec: number;
   tiktokClipStartSec: number;
   showTrackInfoUnderCover: boolean;
   customBackgroundFile: File | null;
   customBackgroundObjectUrl: string | null;
   customBackgroundKind: VideoBackgroundKind | null;
+  customBackgroundDurationSec: number | null;
+  customBackgroundClipStartSec: number;
+  customBackgroundClipDurationSec: number;
 };
