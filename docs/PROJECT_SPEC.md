@@ -161,12 +161,17 @@ type VideoSettings = {
   lyricFontSize: 'small' | 'medium' | 'large';
   lyricFontId: string; // id из videoLyricFonts.ts (каталог Google Fonts)
   lyricAnimationPreset: LyricAnimationPresetId; // 'none' | fade_in | … | words_random_* — см. VIDEOMaker.md §Lyric entrance
+  lyricEffects: LyricVisualEffects; // glow | outline | cutOut — не более одного активного
+  lyricEffectColor: LyricEffectColorSettings; // 12 схем + custom accent
   tiktokClipDurationSec: number; // 15–45, default 30 — только formatId === 'tiktok'
   tiktokClipStartSec: number; // начало клипа на полном треке
   showTrackInfoUnderCover: boolean;
   customBackgroundFile: File | null;
   customBackgroundObjectUrl: string | null;
   customBackgroundKind: 'image' | 'video' | null;
+  customBackgroundDurationSec: number | null; // probe длительности custom video/GIF
+  customBackgroundClipStartSec: number; // окно фонового video на оси песни
+  customBackgroundClipDurationSec: number;
 };
 ```
 
@@ -268,7 +273,7 @@ type VideoSettings = {
 
 ## 6. Таб Videomaker
 
-**Макет:** левая колонка настроек (~280px) + **preview на всю оставшуюся высоту/ширину** (`MainLayout` без padding на этом табе). Нижний **AudioPlayer** — fixed dock как в Liricks.
+**Макет:** сетка **280px | preview+плеер** (`MainLayout` без padding на этом табе). Сайдбар на полную высоту; **AudioPlayer** только в правой колонке (не fixed на всю ширину — см. [VIDEOMaker.md](./VIDEOMaker.md) §Компоновка). На Liricks плеер по-прежнему fixed на всю ширину.
 
 Детали preview, layout и рендера — [VIDEOMaker.md](./VIDEOMaker.md).
 
@@ -281,7 +286,9 @@ type VideoSettings = {
 - **Lyric position** — vertical / horizontal align; **Text size** — Small / Medium / Large (±20%, preview + MP4); блок **выше** Lyric font.
 - **Lyric font** — каталог Google Fonts, плитки Aa (`LyricFontPicker`).
 - **Lyric entrance** — анимация строки (`LyricAnimationPicker`); в т.ч. **Random words** (по словам); default **No animation**.
-- **TikTok short clip** — не в сайдбаре: нижний `AudioPlayer` с `ClipRangeTimeline` (длина 15–45 s, сдвиг по всей песне).
+- **Lyric effects** — Glow / Outline / Cut out (один активный) + цвет (`LyricEffectsPicker`).
+- **TikTok short clip** — не в сайдбаре: **верхний** ряд `AudioPlayer` с `ClipRangeTimeline` (15–45 s).
+- **Custom video clip** — **нижний** ряд плеера (только video bg): окно на оси `track.durationSec` — [VIDEOMaker.md](./VIDEOMaker.md) §Custom video.
 
 ### 6.2. Preview vs export
 
@@ -294,7 +301,7 @@ type VideoSettings = {
 
 - Кнопка **Download video** в WorkflowHeader (только шаг Videomaker).
 - **Офлайн-рендер:** Canvas 2D (`src/utils/videoExport/drawFrame.ts`) + **mediabunny** → **H.264 + AAC**, файл **`.mp4`** (не WebM).
-- Кадры: 30 fps; **YouTube** — до `lyricsEndTimeSec` или длительности аудио; **TikTok** — отрезок `[tiktokClipStartSec, tiktokClipStartSec + tiktokClipDurationSec]` на полном файле (`resolveTiktokExportWindow`, `sliceAudioBuffer`). Имя файла — **Song title** из Options.
+- Кадры: **60 fps**; **YouTube** — до `lyricsEndTimeSec` или длительности аудио; **TikTok** — отрезок `[tiktokClipStartSec, tiktokClipStartSec + tiktokClipDurationSec]` на полном файле (`resolveTiktokExportWindow`, `sliceAudioBuffer`). Имя файла — **Song title** из Options. Фоновое video: `seekBackgroundVideo` на каждый кадр (см. VIDEOMaker.md §Экспорт MP4).
 - Зависимость: `mediabunny` + WebCodecs (H.264/AAC) в браузере.
 - Блокеры: нет аудио, нет синхронизированных строк, нет URL фона (`getVideoExportBlockers`).
 - **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`**. Тексты оверлея на английском.
@@ -423,5 +430,6 @@ docs/
 | 2026-10-13 | **Плеер:** waveform по всей песне (`audioWaveform.ts`, `WaveformBars`); seek перетаскиванием playhead (`usePointerTimelineSeek`). |
 | 2026-10-13 | **Lyric entrance:** пресеты **Random words** (fade / rise / pop) — слова в случайные моменты в коротком burst (`lyricWordAnimation.ts`). |
 | 2026-10-13 | **Videomaker UI:** порядок — Lyric position → Lyric font → Lyric entrance. |
+| 2026-10-14 | **Videomaker:** Lyric effects (glow/outline/cut out) + цвета; custom **video** clip на таймлайне песни; макет dock в правой колонке; MP4 **60 fps** + корректный seek фонового video. |
 
-*Документ версии 2.11 — база для генерации кода агентом и разработчиком.*
+*Документ версии 2.12 — база для генерации кода агентом и разработчиком.*

@@ -19,9 +19,12 @@
 | Зона | Описание |
 |------|----------|
 | WorkflowHeader | **Download video** на этом шаге (см. §Экспорт MP4). |
-| Колонка настроек | ~280px, скролл, border справа. |
-| Preview | Центр области main, **на всю доступную высоту**; aspect ratio по формату. |
-| Bottom dock | `AudioPlayer` + **waveform-таймлайн** (`WaveformBars`); TikTok — **ClipRangeTimeline** на том же плеере; см. §Preview playback. |
+| Колонка настроек (`aside.settings`) | **280px**, на **полную высоту** сетки, вертикальный скролл, border справа; **не перекрывается** плеером. |
+| Правая колонка (`mainColumn`) | Preview + **нижний dock** только здесь (не на всю ширину окна). |
+| Preview | Внутри `mainColumn`, `flex: 1`, aspect ratio кадра по формату; container queries для типографики. |
+| Bottom dock | В потоке **правой** колонки (`flex-shrink: 0`), не `position: fixed` на весь viewport — сайдбар остаётся до низа без «полосы» снизу. |
+
+**Сетка:** `workspace` → `layout` (`grid-template-columns: 280px 1fr`). На узком экране (&lt; 720px) — колонка настроек сверху (max-height ~42vh), превью и плеер снизу.
 
 Файлы: `VideomakerPanel.tsx`, `VideomakerPanel.module.scss`, `VideoPreviewFrame.tsx`.
 
@@ -85,6 +88,47 @@ Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKin
 
 Если URL фона нет — заглушка «No background».
 
+### Custom video — клип на таймлайне песни (вторая дорожка плеера)
+
+Только **`customBackgroundKind === 'video'`** (не GIF, не static image). Вторая строка в `AudioPlayer` (`mediaRow` + `ClipRangeTimeline` без waveform).
+
+| Поле store | Описание |
+|------------|----------|
+| `customBackgroundDurationSec` | Длительность исходного файла (probe при загрузке / restore) |
+| `customBackgroundClipStartSec` | Начало **окна на оси песни** (`track.durationSec`) |
+| `customBackgroundClipDurationSec` | Длина окна на оси песни; max = `min(media, track)` |
+
+**Шкала второй дорожки:** `contentEndSec` = **`track.durationSec`** (как у аудио), не длина видеофайла. Playhead = время песни; seek по второй дорожке **перематывает аудио** (`seekTo`).
+
+**Воспроизведение / MP4:** `resolveBackgroundMediaPlaybackTimeSec(songTime, clipStart, clipDuration, mediaDuration)` — время песни → позиция в файле; при окне длиннее ролика — **loop** внутри `min(clipDuration, mediaDuration)`.
+
+**Clamp:** `clampBackgroundMediaClipSettings(timelineDurationSec, mediaDurationSec, …)` в `src/utils/backgroundMediaClip.ts`. При появлении `track.durationSec` (metadata, restore) клип пересчитывается (`setDurationSec`, `buildVideoSettingsFromBlob`).
+
+**UI:** `isBackgroundVideoClipable` — показ второй дорожки; GIF по-прежнему может быть фоном без отдельного таймлайна.
+
+Константа мин. длины сегмента: `BACKGROUND_MEDIA_CLIP_MIN_SEC` (`backgroundMediaClip.ts`).
+
+---
+
+## Lyric visual effects (Glow / Outline / Cut out)
+
+Секция **Lyric effects** в сайдбаре (`LyricEffectsPicker.tsx`).
+
+| Правило | Реализация |
+|---------|------------|
+| Одновременно **не больше одного** эффекта | `normalizeLyricVisualEffects`, `lyricEffectsWithSingle` (`videoLyricEffects.ts`) |
+| ID | `glow` \| `outline` \| `cutOut` → `VideoSettings.lyricEffects` |
+
+**Cut out:** луч по диагонали 45°, длина луча **`LYRIC_CUTOUT_LENGTH_PX` = 1000** (export px), заливка `LYRIC_CUTOUT_FILL`.
+
+**Glow:** анимированный shimmer; скорость **`LYRIC_GLOW_CHARS_PER_SEC`**, 4 источника, сид от `lineId` (`lyricGlowWave.ts`, `useGlowMotionTimeSec.ts`, `GlowLyricChars.tsx`).
+
+**Цвета эффектов:** `VideoSettings.lyricEffectColor` — 12 пресетов + **custom** (`lyricEffectColors.ts`, `LyricEffectColorSettings`). Палитра влияет на glow/outline/cut out и **лёгкий tint фона** (`LYRIC_EFFECT_BG_TINT_OPACITY` = **0.1**) — preview: `LyricEffectBackgroundTint.tsx`, export: `drawLyricEffectBackgroundTint`.
+
+Preview + MP4: `lyricVisualEffectsStyle.ts`, `lyricCanvasEffects.ts`, `canvasDraw.ts` / `AnimatedPreviewLyric`.
+
+Persistence: `lyricEffects`, `lyricEffectColor` в `videoSettings` (localStorage); нормализация в `sessionPersistence.ts`.
+
 ---
 
 ## Layout текста (пункт 3)
@@ -102,7 +146,7 @@ Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKin
 
 Константы: `src/constants/videoLyricLayout.ts`, `src/constants/videoLyricFontSize.ts`, `src/constants/videoLyricFonts.ts`, `src/constants/videoLyricAnimation.ts`, `src/constants/tiktokClip.ts`.
 
-**Порядок блоков в сайдбаре (сверху вниз после cover):** Lyric position → Lyric font → Lyric entrance.
+**Порядок блоков в сайдбаре (сверху вниз после cover):** Lyric position → Lyric font → Lyric entrance → **Lyric effects** (эффекты + цвет).
 
 ### Каталог шрифтов (Google Fonts)
 
@@ -196,9 +240,19 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 
 ## Preview playback (нижний dock)
 
-- **Liricks и Videomaker:** `AudioPlayer` с `SimpleWaveformSeek` — столбики громкости на **всю** длину трека (`computeWaveformPeaks`, RMS + нормализация по перцентилю).
-- Seek: клик и **перетаскивание** playhead (`usePointerTimelineSeek`).
-- **Videomaker + TikTok:** `clipConfig` → `ClipRangeTimeline` вместо простого seek (см. §TikTok short clip).
+**Liricks:** `AudioPlayer` на **всю ширину** окна (`position: fixed`, `left: 0`).
+
+**Videomaker:** тот же `AudioPlayer` (`embedded`), но только в **`mainColumn`** (см. §Компоновка вкладки).
+
+| Ряд | Условие | UI |
+|-----|---------|-----|
+| Аудио | Всегда при загруженном audio | `SimpleWaveformSeek` или `ClipRangeTimeline` + waveform (`WaveformBars`) |
+| Видео | `isBackgroundVideoClipable` + известны `track.durationSec` и `customBackgroundDurationSec` | Вторая строка: `ClipRangeTimeline` **без** waveform, метка ▦ |
+
+- Waveform: `useAudioWaveformPeaks` — RMS, нормализация по перцентилю, на **всю** длину трека.
+- Seek: клик и drag playhead (`usePointerTimelineSeek`); обёртка `timelineSlot` (`flex: 1`) — дорожка не схлопывается по ширине.
+- **TikTok:** `clipConfig` на **верхнем** ряду — клип экспорта 15–45 s (§TikTok short clip).
+- **Custom video:** `mediaClipConfig` на **нижнем** ряду — клип фона на оси песни (§Custom video).
 
 ---
 
@@ -207,7 +261,7 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 - Проект: `buildLyricsProject(track, lines, lyricsEndTimeSec)`.
 - Состояние строки: `getActiveLyricStateAtTime(lines, timeSec, lyricsEndTimeSec)` → `text`, `lineId`, `lineStartSec`, `lineEndSec`.
 - До первой строки и после **End lyrics** — пустой текст.
-- Custom **video** bg: seek по `playbackTimeSec` из `AudioPlayer` (`VideoPreviewBackground`, порог ~0.2 s).
+- Custom **video** bg: `backgroundPlaybackTimeSec` из `resolveBackgroundMediaPlaybackTimeSec` + `previewTimeSec`; иначе фон следует времени трека (`VideoPreviewBackground`).
 - Текст и анимация: `VideoPreviewFrame` → `AnimatedPreviewLyric` (передаётся `audioRef`, `lines`, `lyricsEndTimeSec`); время кадра для лирики — **не** только `previewTimeSec` из state панели.
 
 ---
@@ -226,9 +280,10 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 
 **Параметры:**
 
-- 30 fps, офлайн-цикл по кадрам (без реального воспроизведения во время кодирования).
+- **60 fps** (`EXPORT_FPS` в `exportLyricVideo.ts`), офлайн-цикл по кадрам (без реального воспроизведения во время кодирования).
 - Длительность: **YouTube** — `lyricsEndTimeSec` ?? `durationSec` ?? декодированное аудио; **TikTok** — длина клипа (`resolveTiktokExportWindow` по полному `decodedAudio.duration`).
-- Для video-фона: `seekBackgroundVideo` на каждый кадр.
+- Для video-фона: на каждый кадр `drawExportFrame` → **`await seekBackgroundVideo`** до `drawImage` (`loadAssets.ts`). Порог пропуска seek **`SEEK_TIME_EPSILON_SEC = 1/240`** (меньше шага кадра 1/60 s), иначе фон «залипает» и визуально ~15–20 fps при 30/60 fps экспорта.
+- Клип custom video в export: те же `customBackgroundClipStartSec` / `customBackgroundClipDurationSec` / `customBackgroundDurationSec`, что в preview (`drawFrame.ts`).
 - Имя файла: `{Song title}.mp4` (`buildVideoDownloadFileName` в `exportLyricVideo.ts`).
 - Метаданные MP4: title / artist из `TrackMeta`.
 - Анимация строк: `videoSettings.lyricAnimationPreset` + `lineEndSec` на каждом кадре (см. §Lyric entrance).
@@ -260,9 +315,11 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 
 ## Persistence
 
-В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`, `tiktokClipDurationSec`, `tiktokClipStartSec`, `showTrackInfoUnderCover`; blob custom bg — IndexedDB.
+В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`, **`lyricEffects`**, **`lyricEffectColor`**, `tiktokClipDurationSec`, `tiktokClipStartSec`, `showTrackInfoUnderCover`, **`customBackgroundDurationSec`**, **`customBackgroundClipStartSec`**, **`customBackgroundClipDurationSec`**; blob custom bg — IndexedDB.
 
-Невалидный `lyricAnimationPreset` после смены каталога → fallback `none` (`isLyricAnimationPresetId` в `sessionPersistence.ts`).
+При restore клип видео clamp’ится с учётом **`track.durationSec`** (`buildVideoSettingsFromBlob`).
+
+Невалидный `lyricAnimationPreset` → fallback `none`; эффекты и цвет — `normalizePersistedLyricEffects` / `normalizeLyricEffectColorSettings` (`sessionPersistence.ts`).
 
 ---
 
@@ -283,3 +340,7 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-13 | **Waveform** на таймлайне плеера; drag seek playhead. |
 | 2026-10-13 | **Random words** (fade / rise / pop); `lyricWordAnimation.ts`. |
 | 2026-10-13 | Сайдбар: Lyric position перед Lyric font. |
+| 2026-10-14 | **Lyric effects:** Glow / Outline / Cut out (взаимоисключающие), палитры + custom, tint фона 10%. |
+| 2026-10-14 | **Custom video clip:** вторая дорожка плеера, ось = длина трека; probe + store; preview/export loop. |
+| 2026-10-14 | **Макет Videomaker:** dock только в `mainColumn`, сайдбар на полную высоту (без fixed на весь viewport). |
+| 2026-10-14 | **MP4 export:** 60 fps; fix seek фонового video (`SEEK_TIME_EPSILON_SEC`). |
