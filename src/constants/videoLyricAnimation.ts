@@ -5,11 +5,8 @@ export type LyricAnimationPresetId =
   | 'drop_down'
   | 'scale_in'
   | 'pop'
-  | 'blur_in'
-  | 'bounce'
   | 'elastic'
   | 'glitch'
-  | 'zoom_blur'
   | 'words_random_fade'
   | 'words_random_rise'
   | 'words_random_pop';
@@ -32,11 +29,8 @@ export const LYRIC_ANIMATION_PRESET_ORDER: LyricAnimationPresetIdAnimated[] = [
   'drop_down',
   'scale_in',
   'pop',
-  'blur_in',
-  'bounce',
   'elastic',
   'glitch',
-  'zoom_blur',
   'words_random_fade',
   'words_random_rise',
   'words_random_pop',
@@ -51,11 +45,8 @@ export const LYRIC_ANIMATION_PRESET_LABELS: Record<
   drop_down: 'Drop down',
   scale_in: 'Scale in',
   pop: 'Pop',
-  blur_in: 'Blur in',
-  bounce: 'Bounce',
   elastic: 'Elastic',
   glitch: 'Glitch',
-  zoom_blur: 'Zoom blur',
   words_random_fade: 'Random words · fade',
   words_random_rise: 'Random words · rise',
   words_random_pop: 'Random words · pop',
@@ -71,3 +62,21 @@ const PRESET_ID_SET = new Set<string>([
 export const isLyricAnimationPresetId = (
   value: string,
 ): value is LyricAnimationPresetId => PRESET_ID_SET.has(value);
+
+const REMOVED_LYRIC_ANIMATION_PRESET_IDS = new Set<string>([
+  'blur_in',
+  'bounce',
+  'zoom_blur',
+]);
+
+export const resolveLyricAnimationPresetId = (
+  value: string | undefined | null,
+): LyricAnimationPresetId => {
+  if (value && REMOVED_LYRIC_ANIMATION_PRESET_IDS.has(value)) {
+    return DEFAULT_LYRIC_ANIMATION_PRESET;
+  }
+  if (value && isLyricAnimationPresetId(value)) {
+    return value;
+  }
+  return DEFAULT_LYRIC_ANIMATION_PRESET;
+};

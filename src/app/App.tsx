@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 
-import { MainLayout } from '../components/layout/MainLayout';
-import { LiricksPanel } from '../components/liricks/LiricksPanel';
-import { OptionsPanel } from '../components/options/OptionsPanel';
-import { VideomakerPanel } from '../components/videomaker/VideomakerPanel';
+import { MainLayout } from '../components/layout/shell/MainLayout';
+import { LiricksPanel } from '../components/liricks/panel/LiricksPanel';
+import { OptionsPanel } from '../components/options/panel/OptionsPanel';
+import { VideomakerPanel } from '../components/videomaker/panel/VideomakerPanel';
 import {
   restoreSessionFromStorage,
   startPersistenceSubscriber,

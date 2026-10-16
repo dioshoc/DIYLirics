@@ -228,16 +228,26 @@ const contrastBackgroundTint = (accent: string): string => {
   return rgbToHex(255 - r * 0.65, 255 - g * 0.65, 255 - b * 0.65);
 };
 
+const outlineStrokeFromAccent = (accent: string): string =>
+  mixHex(normalizeHex(accent), '#000000', 0.22);
+
 const paletteFromAccent = (accentHex: string): LyricEffectPalette => {
   const accent = normalizeHex(accentHex);
   return {
     accent,
     glowSecondary: mixHex(accent, '#ffffff', 0.45),
-    outlineStroke: mixHex(accent, '#ffffff', 0.82),
+    outlineStroke: outlineStrokeFromAccent(accent),
     textFace: mixHex(accent, '#ffffff', 0.88),
     backgroundTint: contrastBackgroundTint(accent),
   };
 };
+
+const withAccentDerivedOutline = (
+  palette: LyricEffectPalette,
+): LyricEffectPalette => ({
+  ...palette,
+  outlineStroke: outlineStrokeFromAccent(palette.accent),
+});
 
 export const resolveLyricEffectPalette = (
   settings: LyricEffectColorSettings,
@@ -248,7 +258,8 @@ export const resolveLyricEffectPalette = (
   const match = LYRIC_EFFECT_COLOR_SCHEMES.find(
     (entry) => entry.id === settings.schemeId,
   );
-  return match?.palette ?? LYRIC_EFFECT_COLOR_SCHEMES[0].palette;
+  const base = match?.palette ?? LYRIC_EFFECT_COLOR_SCHEMES[0].palette;
+  return withAccentDerivedOutline(base);
 };
 
 export const isLyricEffectColorSchemeId = (

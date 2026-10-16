@@ -1,0 +1,331 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { useAudioWaveformPeaks } from '../../../hooks/useAudioWaveformPeaks';
+import { ClipRangeTimeline } from '../../shared/waveform/ClipRangeTimeline';
+import { SimpleWaveformSeek } from '../../shared/waveform/SimpleWaveformSeek';
+import { formatTimeSec } from '../../../utils/time';
+import { clampBackgroundMediaClipSettings } from '../../../utils/backgroundMediaClip';
+import { clampTiktokClipSettings } from '../../../utils/tiktokExportWindow';
+import styles from './AudioPlayer.module.scss';
+
+export type AudioPlayerClipConfig = {
+  contentEndSec: number;
+  clipStartSec: number;
+  clipDurationSec: number;
+  onClipWindowChange: (startSec: number, durationSec: number) => void;
+};
+
+export type AudioPlayerMediaClipConfig = {
+  contentEndSec: number;
+  mediaDurationSec: number;
+  clipStartSec: number;
+  clipDurationSec: number;
+  playheadSec: number;
+  onClipWindowChange: (startSec: number, durationSec: number) => void;
+};
+
+type AudioPlayerProps = {
+  src: string | null;
+  onDuration: (durationSec: number) => void;
+  onTimeUpdate?: (timeSec: number) => void;
+  onPlayingChange?: (isPlaying: boolean) => void;
+  audioRefExternal?: React.RefObject<HTMLAudioElement | null>;
+  embedded?: boolean;
+  clipConfig?: AudioPlayerClipConfig | null;
+  mediaClipConfig?: AudioPlayerMediaClipConfig | null;
+};
+
+export const AudioPlayer = ({
+  src,
+  onDuration,
+  onTimeUpdate,
+  onPlayingChange,
+  audioRefExternal,
+  embedded = false,
+  clipConfig = null,
+  mediaClipConfig = null,
+}: AudioPlayerProps) => {
+  const internalRef = useRef<HTMLAudioElement>(null);
+  const audioRef = audioRefExternal ?? internalRef;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentSec, setCurrentSec] = useState(0);
+  const [durationSec, setDurationSec] = useState<number | null>(null);
+
+  const clipWindow = clipConfig
+    ? clampTiktokClipSettings(
+        clipConfig.contentEndSec,
+        clipConfig.clipDurationSec,
+        clipConfig.clipStartSec,
+      )
+    : null;
+
+  const clipStartSec = clipWindow?.clipStartSec ?? 0;
+  const clipEndSec = clipWindow
+    ? clipWindow.clipStartSec + clipWindow.clipDurationSec
+    : null;
+
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentSec(0);
+    setDurationSec(null);
+    onPlayingChange?.(false);
+    onTimeUpdate?.(0);
+  }, [onPlayingChange, onTimeUpdate, src]);
+
+  const seekTo = useCallback(
+    (timeSec: number) => {
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+      const maxSeek = durationSec ?? timeSec;
+      const next = Math.min(Math.max(0, timeSec), maxSeek);
+      audio.currentTime = next;
+      setCurrentSec(next);
+      onTimeUpdate?.(next);
+    },
+    [audioRef, clipConfig?.contentEndSec, durationSec, onTimeUpdate],
+  );
+
+  const loopClipToStart = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || clipEndSec === null) {
+      return;
+    }
+    audio.currentTime = clipStartSec;
+    setCurrentSec(clipStartSec);
+    onTimeUpdate?.(clipStartSec);
+  }, [audioRef, clipEndSec, clipStartSec, onTimeUpdate]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    const handleTimeUpdate = () => {
+      if (
+        clipEndSec !== null &&
+        audio.currentTime >= clipEndSec - 0.05 &&
+        !audio.paused
+      ) {
+        loopClipToStart();
+        return;
+      }
+      setCurrentSec(audio.currentTime);
+      onTimeUpdate?.(audio.currentTime);
+    };
+
+    const handleLoadedMetadata = () => {
+      if (!Number.isFinite(audio.duration)) {
+        return;
+      }
+      setDurationSec(audio.duration);
+      onDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      if (clipEndSec !== null) {
+        audio.currentTime = clipStartSec;
+        setCurrentSec(clipStartSec);
+        onTimeUpdate?.(clipStartSec);
+        void audio.play()
+          .then(() => {
+            setIsPlaying(true);
+            onPlayingChange?.(true);
+          })
+          .catch(() => {
+            setIsPlaying(false);
+            onPlayingChange?.(false);
+          });
+        return;
+      }
+      setIsPlaying(false);
+      onPlayingChange?.(false);
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [
+    audioRef,
+    clipEndSec,
+    clipStartSec,
+    onDuration,
+    onTimeUpdate,
+    onPlayingChange,
+    loopClipToStart,
+    src,
+  ]);
+
+  const handleTogglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio || !src) {
+      return;
+    }
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      onPlayingChange?.(false);
+      return;
+    }
+
+    if (clipEndSec !== null) {
+      if (audio.currentTime < clipStartSec || audio.currentTime >= clipEndSec) {
+        seekTo(clipStartSec);
+      }
+    }
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+      onPlayingChange?.(true);
+    } catch {
+      setIsPlaying(false);
+      onPlayingChange?.(false);
+    }
+  };
+
+  const timelineEndSec = durationSec;
+  const { peaks: waveformPeaks, isLoading: isWaveformLoading } =
+    useAudioWaveformPeaks(src);
+
+  const hasVideoTrack = Boolean(mediaClipConfig);
+  const playerClassName = embedded
+    ? `${styles.player} ${styles.playerEmbedded}${
+        hasVideoTrack ? ` ${styles.playerWithVideoTrack}` : ''
+      }`
+    : styles.player;
+
+  const clipMeta =
+    clipWindow && timelineEndSec
+      ? `Clip ${formatTimeSec(clipWindow.clipStartSec)}–${formatTimeSec(
+          clipWindow.clipStartSec + clipWindow.clipDurationSec,
+        )} (${Math.round(clipWindow.clipDurationSec)}s)`
+      : null;
+
+  const clampMediaClipWindow = useCallback(
+    (timelineEndSec: number, duration: number, start: number) => {
+      if (!mediaClipConfig) {
+        return { clipStartSec: start, clipDurationSec: duration };
+      }
+      return clampBackgroundMediaClipSettings(
+        timelineEndSec,
+        mediaClipConfig.mediaDurationSec,
+        duration,
+        start,
+      );
+    },
+    [mediaClipConfig],
+  );
+
+  const mediaClipWindow = mediaClipConfig
+    ? clampMediaClipWindow(
+        mediaClipConfig.contentEndSec,
+        mediaClipConfig.clipDurationSec,
+        mediaClipConfig.clipStartSec,
+      )
+    : null;
+
+  const mediaClipMeta =
+    mediaClipWindow && mediaClipConfig
+      ? `Video ${formatTimeSec(mediaClipWindow.clipStartSec)}–${formatTimeSec(
+          mediaClipWindow.clipStartSec + mediaClipWindow.clipDurationSec,
+        )} (${Math.round(mediaClipWindow.clipDurationSec)}s)`
+      : null;
+
+  return (
+    <div className={playerClassName}>
+      <audio
+        ref={audioRef}
+        className={styles.hiddenAudio}
+        src={src ?? undefined}
+        preload="metadata"
+      />
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={styles.playButton}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          disabled={!src}
+          onClick={handleTogglePlay}
+        >
+          {isPlaying ? '❚❚' : '▶'}
+        </button>
+
+        <div className={styles.timelineSlot}>
+          {clipConfig && timelineEndSec ? (
+            <ClipRangeTimeline
+              contentEndSec={clipConfig.contentEndSec}
+              clipStartSec={clipConfig.clipStartSec}
+              clipDurationSec={clipConfig.clipDurationSec}
+              playheadSec={currentSec}
+              waveformPeaks={waveformPeaks}
+              isWaveformLoading={isWaveformLoading}
+              onClipWindowChange={clipConfig.onClipWindowChange}
+              onPlayheadSeek={seekTo}
+            />
+          ) : timelineEndSec ? (
+            <SimpleWaveformSeek
+              durationSec={timelineEndSec}
+              playheadSec={currentSec}
+              peaks={waveformPeaks}
+              isWaveformLoading={isWaveformLoading}
+              onSeek={seekTo}
+            />
+          ) : (
+            <div className={styles.seekPlaceholder} aria-hidden />
+          )}
+        </div>
+
+        <div className={styles.timeBlock}>
+          <span className={styles.time}>
+            {formatTimeSec(currentSec)} / {formatTimeSec(timelineEndSec)}
+          </span>
+          {clipMeta ? (
+            <span className={styles.clipMeta}>{clipMeta}</span>
+          ) : null}
+        </div>
+      </div>
+
+      {mediaClipConfig && mediaClipConfig.contentEndSec > 0 ? (
+        <div className={styles.mediaRow}>
+          <span className={styles.mediaRowLabel} aria-hidden>▦</span>
+          <div className={styles.timelineSlot}>
+          <ClipRangeTimeline
+            contentEndSec={mediaClipConfig.contentEndSec}
+            clipStartSec={mediaClipConfig.clipStartSec}
+            clipDurationSec={mediaClipConfig.clipDurationSec}
+            playheadSec={mediaClipConfig.playheadSec}
+            waveformPeaks={null}
+            clipDurationMinSec={1}
+            clipDurationMaxSec={Math.min(
+              mediaClipConfig.mediaDurationSec,
+              mediaClipConfig.contentEndSec,
+            )}
+            clampClipWindow={clampMediaClipWindow}
+            onClipWindowChange={mediaClipConfig.onClipWindowChange}
+            onPlayheadSeek={seekTo}
+          />
+          </div>
+          <div className={styles.mediaTimeBlock}>
+            <span className={styles.time}>
+              {formatTimeSec(mediaClipConfig.playheadSec)} /{' '}
+              {formatTimeSec(mediaClipConfig.contentEndSec)}
+            </span>
+            {mediaClipMeta ? (
+              <span className={styles.clipMeta}>{mediaClipMeta}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+};

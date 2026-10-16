@@ -7,9 +7,8 @@ import {
   isLyricFontId,
 } from '../constants/videoLyricFonts';
 import {
-  DEFAULT_LYRIC_ANIMATION_PRESET,
   type LyricAnimationPresetId,
-  isLyricAnimationPresetId,
+  resolveLyricAnimationPresetId,
 } from '../constants/videoLyricAnimation';
 import {
   type LyricEffectColorSettings,
@@ -163,11 +162,9 @@ const buildVideoSettingsFromBlob = async (
     lyricHorizontalAlign: persisted.lyricHorizontalAlign ?? 'center',
     lyricFontSize: persisted.lyricFontSize ?? 'medium',
     lyricFontId: resolvePersistedLyricFontId(persisted.lyricFontId),
-    lyricAnimationPreset: isLyricAnimationPresetId(
-      persisted.lyricAnimationPreset ?? '',
-    )
-      ? persisted.lyricAnimationPreset!
-      : DEFAULT_LYRIC_ANIMATION_PRESET,
+    lyricAnimationPreset: resolveLyricAnimationPresetId(
+      persisted.lyricAnimationPreset,
+    ),
     lyricEffects: normalizePersistedLyricEffects(persisted.lyricEffects),
     lyricEffectColor: normalizeLyricEffectColorSettings(
       persisted.lyricEffectColor,

@@ -25,21 +25,7 @@ const IDENTITY: LyricAnimationTransform = {
   blurPx: 0,
 };
 
-const easeOutCubic = (t: number): number => 1 - (1 - t) ** 3;
-
-const easeOutBack = (t: number): number => {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
-};
-
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
-
-type PresetCalculator = (
-  progress: number,
-  eased: number,
-  fontSize: number,
-) => LyricAnimationTransform;
 
 const withBase = (
   partial: Partial<LyricAnimationTransform>,
@@ -48,130 +34,201 @@ const withBase = (
   ...partial,
 });
 
-const enterCalculators: Record<LyricLineAnimationPresetId, PresetCalculator> = {
-  fade_in: (_progress, eased) => withBase({ opacity: eased }),
-  rise_up: (_progress, eased, fontSize) =>
-    withBase({ opacity: eased, translateY: (1 - eased) * fontSize * 0.55 }),
-  drop_down: (_progress, eased, fontSize) =>
-    withBase({ opacity: eased, translateY: (1 - eased) * fontSize * -0.55 }),
-  scale_in: (_progress, eased) =>
-    withBase({ opacity: eased, scale: 0.35 + eased * 0.65 }),
-  pop: (progress, _eased) =>
-    withBase({
-      opacity: Math.min(1, progress * 1.4),
-      scale: progress < 0.55 ? easeOutBack(progress / 0.55) : 1,
-    }),
-  blur_in: (_progress, eased, fontSize) =>
-    withBase({ opacity: eased, blurPx: (1 - eased) * fontSize * 0.35 }),
-  bounce: (progress, _eased) => {
-    const bounce =
-      progress < 0.6
-        ? easeOutCubic(progress / 0.6)
-        : 1 - Math.sin((progress - 0.6) * Math.PI * 5) * 0.08 * (1 - progress);
-    return withBase({
-      opacity: clamp01(progress * 1.5),
-      translateY: (1 - bounce) * 24,
-      scale: 0.9 + bounce * 0.1,
-    });
-  },
-  elastic: (progress) =>
-    withBase({
-      opacity: clamp01(progress * 1.2),
-      scale: progress < 1 ? easeOutBack(progress) : 1,
-    }),
-  glitch: (progress, eased) => {
-    const jitter = Math.sin(progress * 42) * (1 - eased) * 6;
-    return withBase({
-      opacity: eased > 0.15 ? 0.75 + eased * 0.25 : 0.4,
-      translateX: jitter,
-      translateY: Math.cos(progress * 37) * (1 - eased) * 4,
-    });
-  },
-  zoom_blur: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: eased,
-      scale: 1.35 - eased * 0.35,
-      blurPx: (1 - eased) * fontSize * 0.25,
-    }),
+const computePchipDerivatives = (xs: number[], ys: number[]): number[] => {
+  const count = xs.length;
+  const derivatives = new Array<number>(count).fill(0);
+  const slopes = new Array<number>(count - 1);
+
+  for (let index = 0; index < count - 1; index += 1) {
+    const span = xs[index + 1] - xs[index];
+    slopes[index] = span > 0 ? (ys[index + 1] - ys[index]) / span : 0;
+  }
+
+  derivatives[0] = slopes[0];
+  derivatives[count - 1] = slopes[count - 2];
+
+  for (let index = 1; index < count - 1; index += 1) {
+    const prevSlope = slopes[index - 1];
+    const nextSlope = slopes[index];
+    if (prevSlope === 0 || nextSlope === 0 || prevSlope * nextSlope <= 0) {
+      derivatives[index] = 0;
+      continue;
+    }
+
+    const leftSpan = xs[index] - xs[index - 1];
+    const rightSpan = xs[index + 1] - xs[index];
+    const weight1 = 2 * rightSpan + leftSpan;
+    const weight2 = rightSpan + 2 * leftSpan;
+    derivatives[index] =
+      (weight1 + weight2) / (weight1 / prevSlope + weight2 / nextSlope);
+  }
+
+  return derivatives;
 };
 
-const exitCalculators: Record<LyricLineAnimationPresetId, PresetCalculator> = {
-  fade_in: (_progress, eased) => withBase({ opacity: 1 - eased }),
-  rise_up: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: 1 - eased,
-      translateY: -eased * fontSize * 0.55,
-    }),
-  drop_down: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: 1 - eased,
-      translateY: eased * fontSize * 0.55,
-    }),
-  scale_in: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: 1 - eased,
-      scale: 1 + eased * 0.72,
-      blurPx: eased * fontSize * 0.42,
-    }),
-  pop: (progress, _eased) => {
-    const t = easeOutCubic(progress);
-    return withBase({
-      opacity: 1 - t,
-      scale: 1 - t * 0.58,
-    });
-  },
-  blur_in: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: 1 - eased,
-      blurPx: eased * fontSize * 0.35,
-    }),
-  bounce: (progress, _eased) => {
-    const t = easeOutCubic(progress);
-    return withBase({
-      opacity: 1 - t,
-      translateY: t * 22,
-      scale: 1 - t * 0.1,
-    });
-  },
-  elastic: (progress) => {
-    const t = easeOutCubic(progress);
-    return withBase({
-      opacity: 1 - t,
-      scale: Math.max(0.12, 1 - easeOutBack(progress) * 0.88),
-    });
-  },
-  glitch: (progress, eased) => {
-    const fade = 1 - eased;
-    return withBase({
-      opacity: fade,
-      translateX: Math.sin(progress * 48) * progress * 9,
-      translateY: Math.cos(progress * 41) * progress * 6,
-    });
-  },
-  zoom_blur: (_progress, eased, fontSize) =>
-    withBase({
-      opacity: 1 - eased,
-      scale: 1 + eased * 0.35,
-      blurPx: eased * fontSize * 0.25,
-    }),
+const evaluatePchip = (
+  xs: number[],
+  ys: number[],
+  derivatives: number[],
+  x: number,
+): number => {
+  const count = xs.length;
+  if (x <= xs[0]) {
+    return ys[0];
+  }
+  if (x >= xs[count - 1]) {
+    return ys[count - 1];
+  }
+
+  let segment = 0;
+  while (segment < count - 1 && x > xs[segment + 1]) {
+    segment += 1;
+  }
+
+  const span = xs[segment + 1] - xs[segment];
+  const t = span > 0 ? (x - xs[segment]) / span : 0;
+  const t2 = t * t;
+  const t3 = t2 * t;
+
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = t3 - 2 * t2 + t;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 = t3 - t2;
+
+  return (
+    h00 * ys[segment] +
+    h10 * span * derivatives[segment] +
+    h01 * ys[segment + 1] +
+    h11 * span * derivatives[segment + 1]
+  );
 };
 
-const computeEnter = (
+const interpolateChannel = (
+  knotU: number[],
+  knotValues: number[],
+  u: number,
+): number => {
+  const derivatives = computePchipDerivatives(knotU, knotValues);
+  return evaluatePchip(knotU, knotValues, derivatives, u);
+};
+
+type LineMotionContext = {
+  u: number;
+  edge: number;
+  fadeEdge: number;
+  fontSize: number;
+  fadeOut: boolean;
+};
+
+const buildKnotU = (edge: number): number[] => [0, edge, 1 - edge, 1];
+
+const getLineMotionContext = (
+  elapsed: number,
+  duration: number,
+  lineDuration: number | null,
+  hasLineEnd: boolean,
+): LineMotionContext => {
+  const effectiveDuration =
+    lineDuration !== null && lineDuration > 0
+      ? lineDuration
+      : duration + 3.2;
+
+  const rawEdge = duration / Math.max(effectiveDuration, 0.001);
+  const edge = Math.min(0.4, Math.max(0.07, rawEdge));
+  const fadeEdge = Math.min(0.52, Math.max(edge, rawEdge * 1.65));
+
+  return {
+    u: clamp01(elapsed / effectiveDuration),
+    edge,
+    fadeEdge,
+    fontSize: 0,
+    fadeOut: hasLineEnd && lineDuration !== null && lineDuration > 0,
+  };
+};
+
+const computeOpacity = (ctx: LineMotionContext): number => {
+  const knotU = buildKnotU(ctx.fadeEdge);
+  const knotOpacity = ctx.fadeOut ? [0, 0.88, 1, 0] : [0, 0.88, 1, 1];
+  return clamp01(interpolateChannel(knotU, knotOpacity, ctx.u));
+};
+
+/** One travel curve for the whole line: quick settle, slow middle, quick finish. */
+const computeTravel = (ctx: LineMotionContext): number =>
+  interpolateChannel(buildKnotU(ctx.edge), [0, 0.26, 0.68, 1], ctx.u);
+
+type UnifiedLineMotion = (
+  ctx: LineMotionContext,
+  travel: number,
+  opacity: number,
+) => LyricAnimationTransform;
+
+const unifiedLineMotion: Record<LyricLineAnimationPresetId, UnifiedLineMotion> = {
+  fade_in: (_ctx, travel, opacity) =>
+    withBase({
+      opacity,
+      scale: 0.94 + travel * 0.06,
+    }),
+  rise_up: (ctx, travel, opacity) =>
+    withBase({
+      opacity,
+      translateY: (0.55 - travel * 1.18) * ctx.fontSize,
+    }),
+  drop_down: (ctx, travel, opacity) =>
+    withBase({
+      opacity,
+      translateY: (-0.55 + travel * 1.18) * ctx.fontSize,
+    }),
+  scale_in: (ctx, travel, opacity) => {
+    const scale = 0.35 + travel * 1.08;
+    const blurPx =
+      travel > 0.62
+        ? ((travel - 0.62) / 0.38) * ctx.fontSize * 0.42
+        : 0;
+    return withBase({ opacity, scale, blurPx });
+  },
+  pop: (_ctx, travel, opacity) => {
+    const settle = Math.min(1, travel / 0.34);
+    const scale = 0.4 + settle * 0.6 + Math.max(0, travel - 0.34) * 0.35;
+    return withBase({
+      opacity,
+      scale,
+    });
+  },
+  elastic: (_ctx, travel, opacity) =>
+    withBase({
+      opacity,
+      scale: 0.35 + travel * 1.05,
+    }),
+  glitch: (ctx, _travel, opacity) => {
+    const { u, fadeEdge, fadeOut } = ctx;
+    const inGlitch = u < fadeEdge;
+    const outGlitch = fadeOut && u > 1 - fadeEdge;
+
+    if (!inGlitch && !outGlitch) {
+      return withBase({ opacity });
+    }
+
+    const glitchPhase = inGlitch
+      ? 1 - u / fadeEdge
+      : (u - (1 - fadeEdge)) / fadeEdge;
+    const jitter = glitchPhase * 5.5;
+    const wobble = ctx.u * 42;
+
+    return withBase({
+      opacity,
+      translateX: Math.sin(wobble) * jitter,
+      translateY: Math.cos(wobble * 1.25) * jitter * 0.65,
+    });
+  },
+};
+
+const computeUnifiedLineMotion = (
   preset: LyricLineAnimationPresetId,
-  progress: number,
-  fontSize: number,
+  ctx: LineMotionContext,
 ): LyricAnimationTransform => {
-  const eased = easeOutCubic(clamp01(progress));
-  return enterCalculators[preset](clamp01(progress), eased, fontSize);
-};
-
-const computeExit = (
-  preset: LyricLineAnimationPresetId,
-  progress: number,
-  fontSize: number,
-): LyricAnimationTransform => {
-  const eased = easeOutCubic(clamp01(progress));
-  return exitCalculators[preset](clamp01(progress), eased, fontSize);
+  const opacity = computeOpacity(ctx);
+  const travel = computeTravel(ctx);
+  return unifiedLineMotion[preset](ctx, travel, opacity);
 };
 
 export type LyricAnimationTimingOptions = {
@@ -208,30 +265,17 @@ export const getLyricAnimationTransform = (
   }
 
   const lineDuration = hasLineEnd ? lineEndSec - lineStartSec : null;
+  const motionContext = getLineMotionContext(
+    elapsed,
+    duration,
+    lineDuration,
+    hasLineEnd,
+  );
 
-  if (
-    lineDuration !== null &&
-    lineDuration > 0 &&
-    lineDuration < duration * 2
-  ) {
-    const phase = clamp01(elapsed / lineDuration);
-    if (phase < 0.5) {
-      return computeEnter(preset, phase * 2, fontSize);
-    }
-    return computeExit(preset, (phase - 0.5) * 2, fontSize);
-  }
-
-  if (hasLineEnd && remaining < duration) {
-    const exitProgress = 1 - remaining / duration;
-    return computeExit(preset, exitProgress, fontSize);
-  }
-
-  if (elapsed < duration) {
-    const enterProgress = elapsed / duration;
-    return computeEnter(preset, enterProgress, fontSize);
-  }
-
-  return IDENTITY;
+  return computeUnifiedLineMotion(preset, {
+    ...motionContext,
+    fontSize,
+  });
 };
 
 export const lyricAnimationTransformToStyle = (

@@ -83,12 +83,36 @@
 |---|------------------------|-------------------|
 | 1 | **Video format** | `formatId` (`youtube` \| `tiktok`) |
 | 2 | **Background** | `backgroundSource`, custom blob при необходимости |
-| 3 | **Cover side** (YouTube) / **Cover position** (TikTok) | `youtubeCoverSide`, `tiktokCoverPosition` |
-| 4 | **Lyric position**, **Lyric font**, **Lyric entrance** | align v/h, `lyricFontSize`; `lyricFontId`; `lyricAnimationPreset` |
-| 5 | Preview + нижний плеер | waveform-таймлайн, seek drag; для **TikTok** — выбор клипа 15–45 s на плеере (см. `VIDEOMaker.md`) |
-| 6 | **Download video** | офлайн MP4; TikTok — только выбранный клип; `ExportBlockingOverlay` до × / Escape |
+| 3 | **Track info under cover** (только track cover + обложка) | `showTrackInfoUnderCover` |
+| 4 | **Cover layout** (только track cover + обложка) | `youtubeCoverSide`, `tiktokCoverPosition` |
+| 5 | **Lyric position**, **Lyric font**, **Lyric entrance**, **Lyric effects** | align, шрифт, анимация, визуальные эффекты |
+| 6 | Preview + нижний плеер | waveform-таймлайн, seek drag; для **TikTok** — выбор клипа 15–45 s на плеере (см. `VIDEOMaker.md`) |
+| 7 | **Download video** | офлайн MP4; TikTok — только выбранный клип; `ExportBlockingOverlay` до × / Escape |
 
 **Download video** требует: аудио, синхронизированные строки, доступный URL фона (`getVideoExportBlockers`).
+
+### 2.2. UI: компонент `Section`
+
+Общая обёртка блоков настроек и форм: `src/components/shared/section/Section.tsx`.
+
+| Часть | Разметка / стили |
+|-------|------------------|
+| Заголовок | `<header>` + `<h3>` — фон `$color-surface-hover`, нижняя граница |
+| Контент | `<div class="content">` — **padding 12px**, **gap 12px** (column flex) |
+
+Пропсы: `title`, `children`, опционально `className`, `contentClassName`, `titleId`. `useId` для `aria-labelledby`, если `titleId` не передан.
+
+**Правило:** внешние отступы секции задаются только `.content`. Вложенные группы (например **Lyric position** → `.group`, списки в `pickerShared.module.scss`) **не** дублируют `padding: 12px` по краям — только внутренние `gap` между контролами.
+
+**Где используется:**
+
+| Вкладка | Секции (примеры) |
+|---------|------------------|
+| **Options** | Audio, Release cover, Track metadata, Upload status |
+| **Liricks** | Lyrics text, Synced lines, Export & import |
+| **Videomaker** | Все пикеры в сайдбаре (`VideoFormatPicker`, `LyricLayoutPicker`, …) |
+
+Общие стили пикеров Videomaker (список опций, file input): `src/components/videomaker/pickers/pickerShared.module.scss`.
 
 ---
 
@@ -196,6 +220,8 @@ type VideoSettings = {
 - Переход **Options → Liricks** блокируется без загруженного аудио (см. §2 gating).
 - Title / artist могут быть пустыми — синхронизацию не блокируют.
 
+**UI:** контент сгруппирован в компоненты **`Section`** (§2.2): Audio, Release cover, Track metadata, Upload status. Точка входа: `src/components/options/panel/OptionsPanel.tsx`.
+
 ---
 
 ## 5. Таб Liricks
@@ -221,6 +247,8 @@ type VideoSettings = {
 - Нижний док (`position: fixed`, `left: 0`, `right: 0`) всегда виден на вкладке Liricks после загрузки аудио.
 - Полоса меток (▲ / Mark / ▼) показывается, когда есть хотя бы одна строка после «Разбить на строки».
 - У прокручиваемой области — нижний `padding`, чтобы список и JSON не перекрывались доком.
+
+**UI (scroll):** блоки **`Section`** — Lyrics text (textarea + Split), Synced lines (список + End lyrics), Export & import (JSON). Компоненты: `src/components/liricks/panel/LiricksPanel.tsx`, `player/AudioPlayer.tsx`, `line/LineTimeNudge.tsx`.
 
 ### 5.2. Подготовка строк из текста
 
@@ -281,8 +309,9 @@ type VideoSettings = {
 
 - **Video format** — YouTube 16:9 / TikTok 9:16.
 - **Background** — track cover или custom image/video; input файла custom — только при `backgroundSource === 'custom'`.
-- **YouTube:** сторона карточки обложки (`youtubeCoverSide`).
-- **TikTok:** позиция карточки (`tiktokCoverPosition`); опциональный **TikTok social overlay** — только в preview, не в экспорт.
+- **Track info under cover** — Show/Hide подписи `Artist — Title` под карточкой обложки (cover-split); в MP4 при Show. Default: **Hide**. См. [VIDEOMaker.md](./VIDEOMaker.md) §Track info.
+- **Cover layout** (YouTube side / TikTok position) и **Track info** в сайдбаре показываются **только** при `backgroundSource === 'track_cover'` и загруженной обложке в Options. При **Custom media** эти блоки скрыты (`isTrackCoverLayout` в `VideomakerPanel`).
+- **TikTok social overlay** — только в preview, не в экспорт.
 - **Lyric position** — vertical / horizontal align; **Text size** — Small / Medium / Large (±20%, preview + MP4); блок **выше** Lyric font.
 - **Lyric font** — каталог Google Fonts, плитки Aa (`LyricFontPicker`).
 - **Lyric entrance** — анимация строки (`LyricAnimationPicker`); в т.ч. **Random words** (по словам); default **No animation**.
@@ -304,7 +333,7 @@ type VideoSettings = {
 - Кадры: **60 fps**; **YouTube** — до `lyricsEndTimeSec` или длительности аудио; **TikTok** — отрезок `[tiktokClipStartSec, tiktokClipStartSec + tiktokClipDurationSec]` на полном файле (`resolveTiktokExportWindow`, `sliceAudioBuffer`). Имя файла — **Song title** из Options. Фоновое video: `seekBackgroundVideo` на каждый кадр (см. VIDEOMaker.md §Экспорт MP4).
 - Зависимость: `mediabunny` + WebCodecs (H.264/AAC) в браузере.
 - Блокеры: нет аудио, нет синхронизированных строк, нет URL фона (`getVideoExportBlockers`).
-- **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`**. Тексты оверлея на английском.
+- **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/export/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`**. Тексты оверлея на английском.
   - **Фазы:** во время кодирования — спиннер, «Exporting video», progress bar; после успешного скачивания оверлей **остаётся открытым** — «Download ready», 100%, галочка; закрытие только кнопкой **×** в углу карточки или **Escape** (`WorkflowHeader`: `showExportOverlay`, `exportFinished`).
   - **Поддержка проекта** (внизу карточки, видна и во время экспорта, и после): две карточки в сетке — **Boosty** (QR + ссылка) и **Band.link** (QR + ссылка). URL: `src/constants/projectSupport.ts`; QR: `src/assets/boosty-donate-qr.png`, `src/assets/band-link-qr.png`.
   - При **ошибке** экспорта оверлей закрывается, сообщение — в WorkflowHeader.
@@ -338,31 +367,51 @@ type VideoSettings = {
 
 ---
 
-## 8. Структура каталогов (целевая)
+## 8. Структура каталогов (актуальная)
 
 ```
 src/
-  app/                 # корень приложения, провайдеры
+  app/                      # App.tsx, точки входа вкладок
   components/
-    layout/            # MainLayout, WorkflowHeader, ExportBlockingOverlay
+    layout/
+      shell/                # MainLayout
+      header/               # WorkflowHeader
+      export/               # ExportBlockingOverlay
     options/
+      panel/                # OptionsPanel
     liricks/
+      panel/                # LiricksPanel
+      player/               # AudioPlayer (+ waveform / clip timelines)
+      line/                 # LineTimeNudge
+    shared/
+      section/              # Section (header + content)
+      panel/                # Panel.module.scss — поля, кнопки, textarea
+      waveform/             # WaveformBars, ClipRangeTimeline, SimpleWaveformSeek
     videomaker/
-  store/               # session store
-  types/               # TrackMeta, LyricLine, LyricsProject, VideoSettings
-  hooks/
-    useAudioDrivenTimeSec.ts  # плавное время preview для lyric animation
+      panel/                # VideomakerPanel
+      pickers/              # *Picker, pickerShared.module.scss
+      preview/              # VideoPreviewFrame, AnimatedPreviewLyric, …
+      overlay/              # TikTokSocialOverlay
+      lyric/                # LyricAnimation.module.scss, lyricAnimationClass.ts
+  store/
+  types/
+  hooks/                    # useAudioDrivenTimeSec, useGlowMotionTimeSec, …
   utils/
-    workflowReadiness.ts  # gating шагов workflow
-    activeLyricLine.ts    # активная строка + lineEndSec
+    workflowReadiness.ts
+    activeLyricLine.ts
     lyricAnimationTransform.ts
-    videoExport/       # drawFrame, exportLyricVideo (MP4)
-    importLyricsProject.ts, exportProject.ts, …
-  styles/              # globals, variables
+    lyricWordAnimation.ts
+    formatTrackInfoLabel.ts
+    backgroundMediaClip.ts
+    tiktokExportWindow.ts
+    videoExport/
+  styles/
 docs/
-  PROJECT_SPEC.md      # этот файл
-  VIDEOMaker.md        # дополнение: пункты 1–2 Videomaker (когда готовы)
+  PROJECT_SPEC.md
+  VIDEOMaker.md
 ```
+
+Точки входа вкладок в `App.tsx`: `layout/shell/MainLayout`, `options/panel/OptionsPanel`, `liricks/panel/LiricksPanel`, `videomaker/panel/VideomakerPanel`.
 
 ---
 
@@ -431,5 +480,9 @@ docs/
 | 2026-10-13 | **Lyric entrance:** пресеты **Random words** (fade / rise / pop) — слова в случайные моменты в коротком burst (`lyricWordAnimation.ts`). |
 | 2026-10-13 | **Videomaker UI:** порядок — Lyric position → Lyric font → Lyric entrance. |
 | 2026-10-14 | **Videomaker:** Lyric effects (glow/outline/cut out) + цвета; custom **video** clip на таймлайне песни; макет dock в правой колонке; MP4 **60 fps** + корректный seek фонового video. |
+| 2026-10-16 | **UI:** общий компонент **`Section`** (header + content, 12px padding/gap); Options/Liricks/Videomaker на секциях; без двойных отступов у вложенных `.group` / picker lists. |
+| 2026-10-16 | **Структура `components/`:** подпапки `layout/*`, `liricks/*`, `options/panel`, `shared/*`, `videomaker/*` (см. §8). |
+| 2026-10-16 | **Videomaker:** `showTrackInfoUnderCover` — подпись Artist — Title под обложкой (preview + MP4); **Cover layout** / track info только при track cover. |
+| 2026-10-16 | **Lyric entrance:** убраны пресеты slide left/right, spin in, drift, flicker; **No animation** — плитка с иконкой ban; выход строки 0.45 s; preview через `useAudioDrivenTimeSec` (rAF). |
 
-*Документ версии 2.12 — база для генерации кода агентом и разработчиком.*
+*Документ версии 2.13 — база для генерации кода агентом и разработчиком.*

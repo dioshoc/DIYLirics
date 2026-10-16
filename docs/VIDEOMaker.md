@@ -26,7 +26,23 @@
 
 **Сетка:** `workspace` → `layout` (`grid-template-columns: 280px 1fr`). На узком экране (&lt; 720px) — колонка настроек сверху (max-height ~42vh), превью и плеер снизу.
 
-Файлы: `VideomakerPanel.tsx`, `VideomakerPanel.module.scss`, `VideoPreviewFrame.tsx`.
+Файлы: `src/components/videomaker/panel/VideomakerPanel.tsx`, `VideomakerPanel.module.scss`, `src/components/videomaker/preview/VideoPreviewFrame.tsx`.
+
+### Секции настроек (`Section`)
+
+Каждый блок в сайдбаре — обёртка **`Section`** (`src/components/shared/section/Section.tsx`): заголовок + контент с **padding/gap 12px**. Общие стили списков опций: `pickers/pickerShared.module.scss`. Подробнее — §2.2 в [PROJECT_SPEC.md](./PROJECT_SPEC.md).
+
+### Структура кода Videomaker
+
+| Папка | Назначение |
+|-------|------------|
+| `panel/` | `VideomakerPanel` — сетка, сайдбар, preview, плеер |
+| `pickers/` | Format, background, cover layout, track info, lyric layout/font/animation/effects |
+| `preview/` | `VideoPreviewFrame`, `AnimatedPreviewLyric`, фон, tint |
+| `overlay/` | `TikTokSocialOverlay` (только preview) |
+| `lyric/` | CSS keyframes пикера (`LyricAnimation.module.scss`), `lyricAnimationClass.ts` |
+
+Экспорт-оверлей: `src/components/layout/export/ExportBlockingOverlay.tsx`.
 
 ---
 
@@ -108,6 +124,35 @@ Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKin
 
 Константа мин. длины сегмента: `BACKGROUND_MEDIA_CLIP_MIN_SEC` (`backgroundMediaClip.ts`).
 
+### Видимость блоков cover в сайдбаре
+
+| Блок | Условие показа |
+|------|----------------|
+| **Track info under cover** | `backgroundSource === 'track_cover'` **и** есть `track.coverObjectUrl` |
+| **Cover layout** (YouTube / TikTok) | То же + выбранный формат (`youtube` → сторона карточки; `tiktok` → позиция) |
+
+При **Custom media** (image/video) или track cover без файла обложки в Options эти секции **не рендерятся** (`isTrackCoverLayout` в `VideomakerPanel.tsx`). Значения в store (`showTrackInfoUnderCover`, `youtubeCoverSide`, `tiktokCoverPosition`) сохраняются в persistence и снова применяются при возврате к track cover.
+
+---
+
+## Track info under cover
+
+Подпись метаданных трека **под квадратной карточкой обложки** в режиме **cover-split** (`track_cover` + image cover).
+
+| Поле store | Default | UI |
+|------------|---------|-----|
+| `showTrackInfoUnderCover` | `false` | Секция **Track info under cover** — chips **Show** / **Hide** (`TrackInfoUnderCoverPicker.tsx`) |
+
+**Текст:** `formatTrackInfoLabel(artist, title)` → `Artist — Title` (пустые части опускаются; если обе пусты — блок не показывается даже при Show).
+
+**Preview:** колонка карточки (`coverSplitCoverColumn` в `VideomakerPanel.module.scss`) — карточка + `coverSplitTrackInfo` под ней; типографика в духе кадра (белый текст, тень).
+
+**MP4:** `drawFrame.ts` после отрисовки карточки вызывает `drawTrackInfoUnderCover` (`canvasDraw.ts`) — тот же label, перенос по ширине карточки, `line-height` 1.45, шрифт **Rubik 600** (как в export layout).
+
+**Не входит:** режим full-bleed custom/track без split; TikTok social overlay.
+
+Persistence: `showTrackInfoUnderCover` в `videoSettings` (localStorage).
+
 ---
 
 ## Lyric visual effects (Glow / Outline / Cut out)
@@ -146,7 +191,7 @@ Persistence: `lyricEffects`, `lyricEffectColor` в `videoSettings` (localStorage
 
 Константы: `src/constants/videoLyricLayout.ts`, `src/constants/videoLyricFontSize.ts`, `src/constants/videoLyricFonts.ts`, `src/constants/videoLyricAnimation.ts`, `src/constants/tiktokClip.ts`.
 
-**Порядок блоков в сайдбаре (сверху вниз после cover):** Lyric position → Lyric font → Lyric entrance → **Lyric effects** (эффекты + цвет).
+**Порядок блоков в сайдбаре (сверху вниз):** Video format → Background → (при track cover) **Track info under cover** → (при track cover) **Cover layout** → Lyric position → Lyric font → Lyric entrance → **Lyric effects**.
 
 ### Каталог шрифтов (Google Fonts)
 
@@ -176,6 +221,8 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 | Пресеты (10) | Плитки с зацикленным превью **Aa** (CSS loop keyframes, ~1.1 s). |
 
 **ID пресетов** (`LyricAnimationPresetId`): `fade_in`, `rise_up`, `drop_down`, `scale_in`, `pop`, `blur_in`, `bounce`, `elastic`, `glitch`, `zoom_blur`.
+
+**Не в каталоге (удалены из UI):** slide left/right, spin in, drift, flicker — старые id в persistence нормализуются в `none` через `sessionPersistence.ts` / валидатор пресета.
 
 **Длительность фазы входа и выхода:** `LYRIC_ANIMATION_DURATION_SEC` = **0.45 s** (константа в `videoLyricAnimation.ts`).
 
@@ -344,3 +391,7 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-14 | **Custom video clip:** вторая дорожка плеера, ось = длина трека; probe + store; preview/export loop. |
 | 2026-10-14 | **Макет Videomaker:** dock только в `mainColumn`, сайдбар на полную высоту (без fixed на весь viewport). |
 | 2026-10-14 | **MP4 export:** 60 fps; fix seek фонового video (`SEEK_TIME_EPSILON_SEC`). |
+| 2026-10-16 | **Track info under cover:** Show/Hide, preview + MP4; `formatTrackInfoLabel`, `drawTrackInfoUnderCover`. |
+| 2026-10-16 | **Сайдбар:** Track info и Cover layout только при `track_cover` + обложка; скрыты для custom media. |
+| 2026-10-16 | **UI:** все пикеры на `Section`; реорганизация `src/components/` (panel/pickers/preview/…). |
+| 2026-10-16 | **Lyric entrance:** сокращён набор пресетов; No animation — плитка ban; плавный preview (rAF). |
