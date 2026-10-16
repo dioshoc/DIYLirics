@@ -11,8 +11,10 @@
 - Три шага workflow в **WorkflowHeader**: **Options**, **Liricks**, **Videomaker** (без бокового сайдбара). Gating: `src/utils/workflowReadiness.ts`.
 - Options / Liricks: контент по центру, max-width **1200px** (`$content-max-width`).
 - Экспорт из Liricks: JSON `LyricsProject` (+ `meta.lyricsEndTimeSec`); **Import .json** поддерживается.
-- Videomaker: настройки, preview, **MP4 export** — `docs/VIDEOMaker.md`, код в `src/utils/videoExport/`; на время export — `ExportBlockingOverlay`. Шаги workflow — §2.1 `PROJECT_SPEC.md`.
+- Videomaker: настройки, preview, **MP4 export** — `docs/VIDEOMaker.md`, код в `src/utils/videoExport/`; на время export — `layout/export/ExportBlockingOverlay`. Track info под обложкой: `showTrackInfoUnderCover`, §Track info в `VIDEOMaker.md`. Шаги workflow — §2.1 `PROJECT_SPEC.md`.
 - Videomaker lyric: шрифты `videoLyricFonts.ts` / `LyricFontPicker`; анимации `videoLyricAnimation.ts`, `lyricAnimationTransform.ts`, preview `AnimatedPreviewLyric` + `useAudioDrivenTimeSec`; активная строка `activeLyricLine.ts` (`lineEndSec` для выхода).
+- Секции настроек/форм: `src/components/shared/section/Section.tsx` — header + content (padding/gap 12px); внутренние блоки без своих внешних отступов.
+- Структура `src/components/`: `layout/{shell,header,export}`, `options/panel`, `liricks/{panel,player,line}`, `shared/{section,panel,waveform}`, `videomaker/{panel,pickers,preview,overlay,lyric}`.
 - Не добавлять бэкенд, не писать лишнюю пользовательскую документацию без запроса.
 - Код: объекты вместо `switch`, `handle*` для событий, SCSS с переменными из `src/styles`, `line-height` как `1.5` и т.п.
 
