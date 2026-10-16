@@ -4,10 +4,7 @@ import {
   type LyricVisualEffects,
 } from '../constants/videoLyricEffects';
 import { getLyricGlowWaveFactor } from './lyricGlowWave';
-import {
-  getCutOutMaxStep,
-  paintCutOutBeam,
-} from './lyricCutOut';
+import { getCutOutMaxStep, paintCutOutBeam } from './lyricCutOut';
 
 export type LyricCanvasEffectFrame = {
   width: number;
@@ -94,13 +91,11 @@ const paintFaceFill = (
   y: number,
   fontSize: number,
   effects: LyricVisualEffects,
-  textFace: string,
 ): void => {
   const styled = effects.outline || effects.cutOut;
-  const faceFill = effects.outline ? textFace : '#ffffff';
 
   ctx.save();
-  ctx.fillStyle = faceFill;
+  ctx.fillStyle = '#ffffff';
 
   if (!styled) {
     ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
@@ -131,7 +126,7 @@ export const paintLyricTextWithEffects = (
   lineCharCount: number,
   charIndexOffset = 0,
 ): void => {
-  const faceFill = effects.outline ? palette.textFace : '#ffffff';
+  const faceFill = '#ffffff';
 
   if (effects.cutOut) {
     const maxStep = getCutOutMaxStep();
@@ -158,5 +153,5 @@ export const paintLyricTextWithEffects = (
     paintStickerOutline(ctx, text, x, y, palette.outlineStroke);
   }
 
-  paintFaceFill(ctx, text, x, y, fontSize, effects, palette.textFace);
+  paintFaceFill(ctx, text, x, y, fontSize, effects);
 };

@@ -311,7 +311,7 @@ type VideoSettings = {
 - **Background** — track cover или custom image/video; input файла custom — только при `backgroundSource === 'custom'`.
 - **Track info under cover** — Show/Hide подписи `Artist — Title` под карточкой обложки (cover-split); в MP4 при Show. Default: **Hide**. См. [VIDEOMaker.md](./VIDEOMaker.md) §Track info.
 - **Cover layout** (YouTube side / TikTok position) и **Track info** в сайдбаре показываются **только** при `backgroundSource === 'track_cover'` и загруженной обложке в Options. При **Custom media** эти блоки скрыты (`isTrackCoverLayout` в `VideomakerPanel`).
-- **TikTok social overlay** — только в preview, не в экспорт.
+- **TikTok social overlay** — CSS `TikTokSocialOverlay` **вне** `[data-videomaker-export-root]`; в MP4 не входит. PNG-мок приложения (рамка телефона / tab bar assets) **не используется** (откат) — см. [VIDEOMaker.md](./VIDEOMaker.md) §TikTok: кадр, обложка и UI preview.
 - **Lyric position** — vertical / horizontal align; **Text size** — Small / Medium / Large (±20%, preview + MP4); блок **выше** Lyric font.
 - **Lyric font** — каталог Google Fonts, плитки Aa (`LyricFontPicker`).
 - **Lyric entrance** — анимация строки (`LyricAnimationPicker`); в т.ч. **Random words** (по словам); default **No animation**.
@@ -321,7 +321,7 @@ type VideoSettings = {
 
 ### 6.2. Preview vs export
 
-- Узел **`[data-videomaker-export-root]`** — то, что попадает в MP4 (без TikTok UI chrome).
+- Узел **`[data-videomaker-export-root]`** — то, что попадает в MP4: фон, обложка, лирика, track info, эффекты текста. **Без** TikTok social overlay (CSS) и **без** отклонённых PNG-оверлеев интерфейса.
 - Активная строка: `getActiveLyricStateAtTime` (`text`, `lineStartSec`, `lineEndSec`) + учёт `lyricsEndTimeSec`.
 - Анимация текста в preview: `getLyricAnimationTransform` + `useAudioDrivenTimeSec` (rAF при воспроизведении).
 - Масштаб типографики в preview — **container queries** (`cqw` / `cqh`), без привязки к фиксированному UI-scale.
@@ -460,7 +460,7 @@ docs/
 | 2026-10-03 | **Videomaker Background:** **track cover** или **custom image/video** для фона кадра. |
 | 2026-10-03 | **Persistence:** автосохранение сессии в **localStorage** + файлы в **IndexedDB**. |
 | 2026-10-04 | **Videomaker track cover preview:** blur/dim background + side cover card + lyrics. |
-| 2026-10-04 | **TikTok preview:** vertical cover layout (без overlay UI — откат). |
+| 2026-10-04 | **TikTok preview:** vertical cover layout; **откат PNG** full-frame / side+bottom UI assets; вместо них — CSS `TikTokSocialOverlay` вне export root (см. VIDEOMaker.md). |
 | 2026-10-04 | **Liricks:** строка **End lyrics** + `lyricsEndTimeSec` в store, JSON meta, persistence; текст скрывается после этой метки в preview/export. |
 | 2026-10-04 | **Liricks:** **Import .json**; JSON preview **скрыт по умолчанию**. |
 | 2026-10-04 | **Videomaker:** `youtubeCoverSide`, `tiktokCoverPosition`, **Lyric position** (v/h); TikTok **social overlay** только в preview. |

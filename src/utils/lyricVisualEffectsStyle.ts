@@ -68,12 +68,17 @@ export const getLyricEffectPreviewStyle = (
   }
 
   const style: CSSProperties = {
-    textShadow: shadows.length > 0 ? shadows.join(', ') : undefined,
+    textShadow:
+      shadows.length > 0
+        ? shadows.join(', ')
+        : effects.outline
+          ? 'none'
+          : undefined,
   };
 
   if (effects.outline) {
-    style.color = palette.textFace;
-    style.WebkitTextStroke = `7px ${palette.outlineStroke}`;
+    style.color = '#ffffff';
+    style.WebkitTextStroke = `12px ${palette.outlineStroke}`;
     style.paintOrder = 'stroke fill';
   } else if (effects.cutOut) {
     style.color = '#ffffff';

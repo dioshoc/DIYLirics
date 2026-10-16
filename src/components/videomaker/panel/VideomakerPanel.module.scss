@@ -179,6 +179,8 @@
 }
 
 .coverSplitLyric {
+  position: relative;
+  z-index: 1;
   flex: 1;
   margin: 0;
   font-family: var(--lyric-font-family, system-ui, sans-serif);
@@ -192,6 +194,8 @@
 }
 
 .coverSplitCoverColumn {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -293,8 +297,12 @@
   pointer-events: none;
 }
 
-.previewBox[data-format='tiktok'][data-layout='cover-split'] .previewLyricOverlay {
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .coverSplitForeground {
   z-index: 2;
+}
+
+.previewBox[data-format='tiktok'][data-layout='cover-split'] .previewLyricOverlay {
+  z-index: 1;
 }
 
 .previewBox[data-format='tiktok'][data-layout='cover-split'][data-cover-position='top']

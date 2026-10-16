@@ -37,6 +37,7 @@ import {
 import type { ExportMediaAssets } from './loadAssets';
 import { seekBackgroundVideo } from './loadAssets';
 import { isCoverSplitLayout } from './isCoverSplit';
+import type { LyricCanvasEffectFrame } from '../lyricCanvasEffects';
 
 export type DrawFrameConfig = {
   width: number;
@@ -71,6 +72,11 @@ type DrawFrameRuntime = {
 };
 
 type LyricBoxAlign = ReturnType<typeof lyricAlign>;
+
+const buildLyricEffectFrame = (config: DrawFrameConfig): LyricCanvasEffectFrame => ({
+  width: config.width,
+  height: config.height,
+});
 
 const drawLyricForRuntime = (
   ctx: CanvasRenderingContext2D,
@@ -107,7 +113,7 @@ const drawLyricForRuntime = (
       fontWeight,
       config.lyricEffects,
       palette,
-      { width: config.width, height: config.height },
+      buildLyricEffectFrame(config),
     );
     return;
   }
@@ -131,7 +137,7 @@ const drawLyricForRuntime = (
     animation,
     config.lyricEffects,
     palette,
-    { width: config.width, height: config.height },
+    buildLyricEffectFrame(config),
     timeSec,
     lineId,
   );
@@ -278,10 +284,17 @@ const drawYoutubeCoverSplit = (
   );
   const fontFamily = getLyricFontCssFamily(config.lyricFontId);
   const align = lyricAlign(lyricVerticalAlign, lyricHorizontalAlign);
+  const elevateCoverForCutOut = config.lyricEffects.cutOut;
+
+  const drawCoverCard = (cardX: number) => {
+    drawRoundedImage(ctx, cover, cardX, cardY, cardSize, radius);
+    drawCoverTrackInfoIfEnabled(ctx, config, cardX, cardY, cardSize);
+  };
 
   if (youtubeCoverSide === 'left') {
-    drawRoundedImage(ctx, cover, cardXLeft, cardY, cardSize, radius);
-    drawCoverTrackInfoIfEnabled(ctx, config, cardXLeft, cardY, cardSize);
+    if (!elevateCoverForCutOut) {
+      drawCoverCard(cardXLeft);
+    }
     drawLyricForRuntime(
       ctx,
       config,
@@ -292,6 +305,9 @@ const drawYoutubeCoverSplit = (
       fontFamily,
       700,
     );
+    if (elevateCoverForCutOut) {
+      drawCoverCard(cardXLeft);
+    }
     return;
   }
 
@@ -305,8 +321,7 @@ const drawYoutubeCoverSplit = (
     fontFamily,
     700,
   );
-  drawRoundedImage(ctx, cover, cardXRight, cardY, cardSize, radius);
-  drawCoverTrackInfoIfEnabled(ctx, config, cardXRight, cardY, cardSize);
+  drawCoverCard(cardXRight);
 };
 
 const drawTiktokCoverSplit = (
@@ -335,8 +350,16 @@ const drawTiktokCoverSplit = (
   const cardY =
     tiktokCoverPosition === 'bottom' ? cardYBottom : cardYTop;
 
-  drawRoundedImage(ctx, cover, cardX, cardY, cardSize, radius);
-  drawCoverTrackInfoIfEnabled(ctx, config, cardX, cardY, cardSize);
+  const elevateCoverForCutOut = config.lyricEffects.cutOut;
+
+  const drawCoverCard = () => {
+    drawRoundedImage(ctx, cover, cardX, cardY, cardSize, radius);
+    drawCoverTrackInfoIfEnabled(ctx, config, cardX, cardY, cardSize);
+  };
+
+  if (!elevateCoverForCutOut) {
+    drawCoverCard();
+  }
 
   const lyricPadX = width * 0.1;
   const cardReserve = cardSize + height * 0.0175;
@@ -367,6 +390,10 @@ const drawTiktokCoverSplit = (
     fontFamily,
     700,
   );
+
+  if (elevateCoverForCutOut) {
+    drawCoverCard();
+  }
 };
 
 const drawFullLayout = (

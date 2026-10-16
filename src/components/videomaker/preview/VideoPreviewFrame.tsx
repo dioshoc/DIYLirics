@@ -79,6 +79,11 @@ export const VideoPreviewFrame = ({
   showTrackInfoUnderCover,
 }: VideoPreviewFrameProps) => {
   const trackInfoLabel = formatTrackInfoLabel(artist, title);
+  const isCoverSplit = useCoverSplitLayout(
+    backgroundSource,
+    coverArtUrl,
+    background,
+  );
   const lyricElement = (className: string) => (
     <AnimatedPreviewLyric
       lines={lines}
@@ -103,12 +108,6 @@ export const VideoPreviewFrame = ({
     'data-lyric-h': lyricHorizontalAlign,
     'data-lyric-size': lyricFontSize,
   };
-  const isCoverSplit = useCoverSplitLayout(
-    backgroundSource,
-    coverArtUrl,
-    background,
-  );
-
   if (isCoverSplit && coverArtUrl) {
     const isTiktokCoverSplit = formatId === 'tiktok';
 

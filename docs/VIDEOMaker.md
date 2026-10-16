@@ -276,12 +276,59 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 
 ---
 
-## TikTok social overlay (только preview)
+## TikTok: кадр, обложка и UI preview
 
-`TikTokSocialOverlay` — полупрозрачный UI в стиле TikTok (artist/title и т.д.).
+### Track cover (вертикальный TikTok)
 
-- Рендерится **рядом** с кадром, **вне** `[data-videomaker-export-root]`.
-- В **MP4 не входит**.
+Когда `formatId === 'tiktok'`, `backgroundSource === 'track_cover'` и есть обложка:
+
+| Слой | Содержимое |
+|------|------------|
+| Фон | Та же обложка на весь кадр: `object-fit: cover`, **blur ~14px**, scrim ~58% |
+| Карточка | Квадратная обложка (`tiktokCoverPosition`: **top** или **bottom**), скругление + тень |
+| Текст | Активная строка в **`previewLyricOverlay`** (не внутри карточки), отступы под позицию карточки |
+| Track info (опц.) | `Artist — Title` под карточкой при **Show** (`showTrackInfoUnderCover`) |
+
+Горизонтальный **YouTube** — см. §Background (ряд: текст + карточка, сторона `youtubeCoverSide`).
+
+Масштаб типографики и отступов — **container queries** на `previewBox` (`cqw` / `cqh`).
+
+### Откат PNG-оверлея «как в приложении»
+
+Пробовали наложение **готового PNG** (рамка телефона + UI TikTok / вырезанные side + bottom bar). **Отклонено и удалено из кода:**
+
+- не используем `tiktok-ui-overlay.png`, `tiktok-ui-side.png`, `tiktok-ui-bottom.png`;
+- **не** накладываем full-frame картинку поверх `[data-videomaker-export-root]`;
+- низ tab bar из мока **не** дублируем отдельным asset.
+
+Причина: нужен чистый **контент кадра** (фон + обложка + лирика) для MP4; «оболочка приложения» мешала preview и не должна попадать в export.
+
+### TikTok social overlay (только preview, CSS)
+
+Вместо PNG — компонент **`TikTokSocialOverlay`** (`src/components/videomaker/overlay/`):
+
+| Элемент | Данные |
+|---------|--------|
+| Top tabs | Following / For You (декор) |
+| Right rail | Аватар, like / comment / bookmark / share (статичные счётчики-заглушки) |
+| Bottom meta | `@handle` из **Artist**, caption из **Title**, строка Original sound |
+
+**Условие:** `formatId === 'tiktok'`.
+
+**DOM / export:**
+
+```
+previewFrameWrap
+├── [data-videomaker-export-root]  → VideoPreviewFrame  →  попадает в MP4
+└── TikTokSocialOverlay (absolute, inset 0)               →  только preview
+```
+
+- Оверлей — **сосед** export root внутри `previewFrameWrap`, не ребёнок `data-videomaker-export-root`.
+- Стили: `TikTokSocialOverlay.module.scss`, единицы **cqw/cqh** (тот же container, что у кадра).
+- **`pointer-events: none`**, `aria-hidden` — не мешает кликам по preview.
+- В **MP4 не входит** (экспорт рисует только содержимое export root через `drawFrame.ts`).
+
+**Не путать с:** lyric overlay (`previewLyricOverlay`) — это **текст песни** внутри кадра и **входит** в export.
 
 ---
 
@@ -395,3 +442,4 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-16 | **Сайдбар:** Track info и Cover layout только при `track_cover` + обложка; скрыты для custom media. |
 | 2026-10-16 | **UI:** все пикеры на `Section`; реорганизация `src/components/` (panel/pickers/preview/…). |
 | 2026-10-16 | **Lyric entrance:** сокращён набор пресетов; No animation — плитка ban; плавный preview (rAF). |
+| 2026-10-16 | **Док:** §TikTok — track cover vertical, откат PNG UI, граница export root vs `TikTokSocialOverlay`. |

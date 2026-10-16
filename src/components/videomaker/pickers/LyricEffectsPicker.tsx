@@ -51,10 +51,11 @@ const PREVIEW_STYLE: Record<
   glow: (accent, _stroke, _face) => ({
     textShadow: `0 0 3px rgb(255 255 255 / 95%), 0 0 8px ${accent}`,
   }),
-  outline: (_accent, stroke, face) => ({
-    color: face,
+  outline: (_accent, stroke, _face) => ({
+    color: '#ffffff',
     WebkitTextStroke: `2px ${stroke}`,
     paintOrder: 'stroke fill',
+    textShadow: 'none',
   }),
   cutOut: (accent) => ({
     textShadow: `1px 1px 0 ${accent}, 2px 2px 0 ${accent}, 3px 3px 0 ${accent}, 4px 4px 0 ${accent}`,
