@@ -18,7 +18,7 @@
 
 | Зона | Описание |
 |------|----------|
-| WorkflowHeader | **Download video** на этом шаге (см. §Экспорт MP4). |
+| WorkflowHeader | **Reset session** (с подтверждением) + **Download video** на Videomaker; на других шагах — **Reset session** + **Next** (см. §Экспорт MP4, §WorkflowHeader). |
 | Колонка настроек (`aside.settings`) | **280px**, на **полную высоту** сетки, вертикальный скролл, border справа; **не перекрывается** плеером. |
 | Правая колонка (`mainColumn`) | Preview + **нижний dock** только здесь (не на всю ширину окна). |
 | Preview | Внутри `mainColumn`, `flex: 1`, aspect ratio кадра по формату; container queries для типографики. |
@@ -83,21 +83,27 @@ Persistence: `tiktokClipDurationSec`, `tiktokClipStartSec` в `videoSettings` (l
 
 | Значение | Поведение |
 |----------|-----------|
-| `track_cover` | Обложка из **Options** (`TrackMeta.coverObjectUrl`). Недоступно без обложки. |
-| `custom` | Файл **image/** или **video/**; input показывается **только** при выбранном `custom`. |
+| `track_cover` | Карточка — обложка из **Options**; фон (backdrop) — release art или custom media (`trackCoverBackdropSource`). |
+| `custom` | Файл **image/** или **video/** на весь кадр; input только при `custom`. |
 
-Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKind`.
+Store: `trackCoverBackdropSource` (`release_art` \| `custom_media`), `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKind`.
 
-Разрешение URL: `resolveVideoBackground()` (`src/utils/videoBackground.ts`).
+Разрешение URL: `resolveVideoBackground()` (full / custom), `resolveTrackCoverBackdrop()` (backdrop за карточкой). Загрузка backdrop в track cover — `setTrackCoverBackdropFile` (режим **не** переключается на full `custom`); full-bleed — `setCustomBackgroundFile` (ставит `backgroundSource: 'custom'`).
+
+**UI (Track cover):** под радио «Track cover» — блок **Backdrop behind the cover card**: **Release art** \| **Custom media** + file input при custom. Пока custom-файл не выбран, backdrop = release art.
 
 ### Режим full (`custom` или track cover без split)
 
 - Медиа на весь кадр (`VideoPreviewBackground`), opacity ~0.45 + затемнение.
 - Текст в `previewLyricOverlay` с отступами и **Lyric position**.
 
-### Режим cover-split (`track_cover` + image)
+### Режим cover-split (`track_cover` + обложка в Options)
 
-- Фон: та же обложка, **cover** + **blur** + scrim ~58%.
+- **Карточка** — всегда release art из Options (`coverSplitCard`).
+- **Backdrop** (`CoverSplitBackdrop`, `resolveTrackCoverBackdrop`):
+  - **Release art** (`release_art` или custom без файла): `object-fit: cover`, **blur** (`max(10px, 1cqmin)`), **scale 1.05**, scrim ~58% (`data-backdrop="release-art"` на `.coverSplitBg`).
+  - **Custom media** (`custom_media` + загруженный файл, `isTrackCoverCustomMediaBackdrop`): **без blur и без scale** — чистый cover; scrim ~58% сохраняется (`data-backdrop="custom"`).
+- **MP4:** `drawCoverSplitBackdrop` — blur + scale 1.05 только если нет отдельных `coverSplitBackdropImage` / `coverSplitBackdropVideo` в assets (т.е. fallback на обложку).
 - **YouTube:** ряд — карточка обложки + текст; сторона карточки — `youtubeCoverSide` (`left` \| `right`).
 - **TikTok:** карточка **фиксирована** сверху или снизу (`tiktokCoverPosition`); текст — в отдельном `previewLyricOverlay` (не внутри карточки), с отступами под размер карточки.
 - Масштаб в preview: **container queries** (`cqw`, `cqh`, `cqmin`), `line-height` числом (1.45 / 1.5).
@@ -106,7 +112,7 @@ Store: `customBackgroundFile`, `customBackgroundObjectUrl`, `customBackgroundKin
 
 ### Custom video — клип на таймлайне песни (вторая дорожка плеера)
 
-Только **`customBackgroundKind === 'video'`** (не GIF, не static image). Вторая строка в `AudioPlayer` (`mediaRow` + `ClipRangeTimeline` без waveform).
+**`customBackgroundKind === 'video'`** при `backgroundSource === 'custom'` **или** при track cover + `trackCoverBackdropSource === 'custom_media'`. Вторая строка в `AudioPlayer` (`mediaRow` + `ClipRangeTimeline` без waveform).
 
 | Поле store | Описание |
 |------------|----------|
@@ -284,7 +290,7 @@ Preview: CSS `--lyric-font-family`. Export: `ensureLyricFontLoaded` + `drawLyric
 
 | Слой | Содержимое |
 |------|------------|
-| Фон | Та же обложка на весь кадр: `object-fit: cover`, **blur ~14px**, scrim ~58% |
+| Фон | Backdrop как в §cover-split: release art — blur + scale; custom backdrop — cover без blur/scale; scrim ~58% |
 | Карточка | Квадратная обложка (`tiktokCoverPosition`: **top** или **bottom**), скругление + тень |
 | Текст | Активная строка в **`previewLyricOverlay`** (не внутри карточки), отступы под позицию карточки |
 | Track info (опц.) | `Artist — Title` под карточкой при **Show** (`showTrackInfoUnderCover`) |
@@ -360,9 +366,19 @@ previewFrameWrap
 
 ---
 
+## WorkflowHeader (действия справа)
+
+| Кнопка | Шаги | Поведение |
+|--------|------|-----------|
+| **Reset session** | Все | Модалка `ConfirmDialog` (`src/components/layout/confirm/ConfirmDialog.tsx`): сброс store, `localStorage` + IndexedDB blobs (`resetApplicationSession` в `sessionPersistence.ts`); переход на **Options**. Пауза плеера (`requestPlaybackPause`). Disabled во время MP4 export / пока идёт reset. |
+| **Next: …** | Options, Liricks | Gating (`workflowReadiness.ts`). |
+| **Download video** | Videomaker | См. §Экспорт MP4; перед стартом — **пауза** preview/аудио (`requestPlaybackPause` → `playbackPauseSignal` в store, `AudioPlayer`). |
+
+---
+
 ## Экспорт MP4
 
-**Триггер:** WorkflowHeader → **Download video**.
+**Триггер:** WorkflowHeader → **Download video** (см. §WorkflowHeader).
 
 **Стек:**
 
@@ -382,7 +398,7 @@ previewFrameWrap
 - Метаданные MP4: title / artist из `TrackMeta`.
 - Анимация строк: `videoSettings.lyricAnimationPreset` + `lineEndSec` на каждом кадре (см. §Lyric entrance).
 
-**Проверки:** `getVideoExportBlockers` — аудио, ≥1 синхронизированная строка, URL фона.
+**Проверки:** `getVideoExportBlockers` — аудио, ≥1 синхронизированная строка; при `backgroundSource === 'track_cover'` — обложка в Options; при `custom` — загруженный custom background file.
 
 **Блокировка UI на время экспорта:**
 
@@ -409,7 +425,7 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 
 ## Persistence
 
-В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`, **`lyricEffects`**, **`lyricEffectColor`**, `tiktokClipDurationSec`, `tiktokClipStartSec`, `showTrackInfoUnderCover`, **`customBackgroundDurationSec`**, **`customBackgroundClipStartSec`**, **`customBackgroundClipDurationSec`**; blob custom bg — IndexedDB.
+В `localStorage` (вложено в `videoSettings`): `formatId`, `backgroundSource`, `trackCoverBackdropSource`, `youtubeCoverSide`, `tiktokCoverPosition`, `lyricVerticalAlign`, `lyricHorizontalAlign`, `lyricFontSize`, `lyricFontId`, `lyricAnimationPreset`, **`lyricEffects`**, **`lyricEffectColor`**, `tiktokClipDurationSec`, `tiktokClipStartSec`, `showTrackInfoUnderCover`, **`customBackgroundDurationSec`**, **`customBackgroundClipStartSec`**, **`customBackgroundClipDurationSec`**; blob custom bg — IndexedDB.
 
 При restore клип видео clamp’ится с учётом **`track.durationSec`** (`buildVideoSettingsFromBlob`).
 
@@ -443,3 +459,6 @@ Canvas-рендер приближён к preview; pixel-perfect совпаде�
 | 2026-10-16 | **UI:** все пикеры на `Section`; реорганизация `src/components/` (panel/pickers/preview/…). |
 | 2026-10-16 | **Lyric entrance:** сокращён набор пресетов; No animation — плитка ban; плавный preview (rAF). |
 | 2026-10-16 | **Док:** §TikTok — track cover vertical, откат PNG UI, граница export root vs `TikTokSocialOverlay`. |
+| 2026-10-20 | **Track cover backdrop:** `trackCoverBackdropSource` + custom file за карточкой; preview `CoverSplitBackdrop`; export `loadExportMediaAssets` + `drawCoverSplitBackdrop`. |
+| 2026-10-20 | **Custom backdrop:** без blur/scale (`isTrackCoverCustomMediaBackdrop`); release art — blur + scale 1.05. |
+| 2026-10-20 | **WorkflowHeader:** **Reset session** + `ConfirmDialog`; **Download video** останавливает воспроизведение (`playbackPauseSignal`). |

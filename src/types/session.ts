@@ -52,9 +52,12 @@ export type VideoBackgroundSource = 'track_cover' | 'custom';
 
 export type VideoBackgroundKind = 'image' | 'video';
 
+export type TrackCoverBackdropSource = 'release_art' | 'custom_media';
+
 export type VideoSettings = {
   formatId: VideoFormatId;
   backgroundSource: VideoBackgroundSource;
+  trackCoverBackdropSource: TrackCoverBackdropSource;
   youtubeCoverSide: YoutubeCoverSide;
   tiktokCoverPosition: TiktokCoverPosition;
   lyricVerticalAlign: LyricVerticalAlign;

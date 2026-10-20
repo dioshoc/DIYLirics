@@ -4,6 +4,8 @@ export type ExportMediaAssets = {
   coverImage: HTMLImageElement | null;
   backgroundImage: HTMLImageElement | null;
   backgroundVideo: HTMLVideoElement | null;
+  coverSplitBackdropImage: HTMLImageElement | null;
+  coverSplitBackdropVideo: HTMLVideoElement | null;
 };
 
 const loadImage = (url: string): Promise<HTMLImageElement> =>
@@ -27,23 +29,69 @@ const loadVideo = (url: string): Promise<HTMLVideoElement> =>
     video.src = url;
   });
 
+const emptyBackdropAssets = {
+  coverSplitBackdropImage: null,
+  coverSplitBackdropVideo: null,
+};
+
 export const loadExportMediaAssets = async (
   coverArtUrl: string | null,
   background: ResolvedVideoBackground,
+  coverSplitBackdrop: ResolvedVideoBackground | null,
 ): Promise<ExportMediaAssets> => {
   const coverImage = coverArtUrl ? await loadImage(coverArtUrl) : null;
 
-  if (!background.url || !background.kind) {
-    return { coverImage, backgroundImage: null, backgroundVideo: null };
+  let backgroundImage: HTMLImageElement | null = null;
+  let backgroundVideo: HTMLVideoElement | null = null;
+
+  if (background.url && background.kind) {
+    if (background.kind === 'video') {
+      backgroundVideo = await loadVideo(background.url);
+    } else {
+      backgroundImage = await loadImage(background.url);
+    }
   }
 
-  if (background.kind === 'video') {
-    const backgroundVideo = await loadVideo(background.url);
-    return { coverImage, backgroundImage: null, backgroundVideo };
+  if (!coverSplitBackdrop?.url || !coverSplitBackdrop.kind) {
+    return {
+      coverImage,
+      backgroundImage,
+      backgroundVideo,
+      ...emptyBackdropAssets,
+    };
   }
 
-  const backgroundImage = await loadImage(background.url);
-  return { coverImage, backgroundImage, backgroundVideo: null };
+  const sameAsCover =
+    coverArtUrl !== null && coverSplitBackdrop.url === coverArtUrl;
+
+  if (coverSplitBackdrop.kind === 'video') {
+    const coverSplitBackdropVideo = await loadVideo(coverSplitBackdrop.url);
+    return {
+      coverImage,
+      backgroundImage,
+      backgroundVideo,
+      coverSplitBackdropImage: null,
+      coverSplitBackdropVideo,
+    };
+  }
+
+  if (sameAsCover) {
+    return {
+      coverImage,
+      backgroundImage,
+      backgroundVideo,
+      ...emptyBackdropAssets,
+    };
+  }
+
+  const coverSplitBackdropImage = await loadImage(coverSplitBackdrop.url);
+  return {
+    coverImage,
+    backgroundImage,
+    backgroundVideo,
+    coverSplitBackdropImage,
+    coverSplitBackdropVideo: null,
+  };
 };
 
 /** Must be below one export frame step (1/60 s) so each encoded frame gets a fresh seek. */

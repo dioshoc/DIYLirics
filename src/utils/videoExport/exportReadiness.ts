@@ -17,9 +17,15 @@ export const getVideoExportBlockers = (
     blockers.push('Sync at least one lyric line in Liricks.');
   }
 
-  const background = resolveVideoBackground(track, videoSettings);
-  if (!background.url) {
-    blockers.push('Set a track cover or custom background.');
+  if (videoSettings.backgroundSource === 'track_cover') {
+    if (!track.coverObjectUrl) {
+      blockers.push('Upload cover art in Options.');
+    }
+  } else {
+    const background = resolveVideoBackground(track, videoSettings);
+    if (!background.url) {
+      blockers.push('Upload a custom background file.');
+    }
   }
 
   return blockers;

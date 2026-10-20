@@ -191,15 +191,30 @@ const drawCoverTrackInfoIfEnabled = (
   );
 };
 
-const drawBlurredCoverBackdrop = (
+const drawCoverSplitBackdrop = (
   ctx: CanvasRenderingContext2D,
-  image: HTMLImageElement,
+  assets: ExportMediaAssets,
   width: number,
   height: number,
 ): void => {
+  const source =
+    assets.coverSplitBackdropVideo ??
+    assets.coverSplitBackdropImage ??
+    assets.coverImage;
+  if (!source) {
+    return;
+  }
+
+  const isReleaseArtBackdrop =
+    !assets.coverSplitBackdropVideo && !assets.coverSplitBackdropImage;
+
   ctx.save();
-  ctx.filter = `blur(${Math.max(10, Math.min(width, height) * 0.01)}px)`;
-  drawImageCover(ctx, image, width, height, 1.05);
+  if (isReleaseArtBackdrop) {
+    ctx.filter = `blur(${Math.max(10, Math.min(width, height) * 0.01)}px)`;
+    drawImageCover(ctx, source, width, height, 1.05);
+  } else {
+    drawImageCover(ctx, source, width, height, 1);
+  }
   ctx.restore();
   ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
   ctx.fillRect(0, 0, width, height);
@@ -254,7 +269,7 @@ const drawYoutubeCoverSplit = (
     return;
   }
 
-  drawBlurredCoverBackdrop(ctx, cover, width, height);
+  drawCoverSplitBackdrop(ctx, assets, width, height);
   applyLyricEffectBackgroundTint(ctx, config);
 
   const padX = width * 0.07;
@@ -337,7 +352,7 @@ const drawTiktokCoverSplit = (
     return;
   }
 
-  drawBlurredCoverBackdrop(ctx, cover, width, height);
+  drawCoverSplitBackdrop(ctx, assets, width, height);
   applyLyricEffectBackgroundTint(ctx, config);
 
   const cardSize = Math.min(width * 0.612, height * 0.357);
@@ -446,7 +461,15 @@ export const drawExportFrame = async (
   const { width, height, project, lyricsEndTimeSec } = config;
   ctx.clearRect(0, 0, width, height);
 
-  if (assets.backgroundVideo) {
+  const coverSplit = isCoverSplitLayout(
+    config.backgroundSource,
+    config.coverArtUrl,
+  );
+  const backdropVideo = coverSplit
+    ? assets.coverSplitBackdropVideo
+    : assets.backgroundVideo;
+
+  if (backdropVideo) {
     const mediaDurationSec = config.customBackgroundDurationSec ?? 0;
     const mediaTimeSec = resolveBackgroundMediaPlaybackTimeSec(
       timeSec,
@@ -454,7 +477,7 @@ export const drawExportFrame = async (
       config.customBackgroundClipDurationSec,
       mediaDurationSec,
     );
-    await seekBackgroundVideo(assets.backgroundVideo, mediaTimeSec);
+    await seekBackgroundVideo(backdropVideo, mediaTimeSec);
   }
 
   const lyricState = getActiveLyricStateAtTime(
@@ -469,12 +492,6 @@ export const drawExportFrame = async (
     lineStartSec: lyricState.lineStartSec,
     lineEndSec: lyricState.lineEndSec,
   };
-
-  const coverSplit = isCoverSplitLayout(
-    config.backgroundSource,
-    config.coverArtUrl,
-    config.background,
-  );
 
   if (coverSplit && assets.coverImage) {
     if (config.formatId === 'youtube') {

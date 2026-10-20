@@ -15,7 +15,9 @@ import {
 } from '../../../utils/workflowReadiness';
 import diyliricsLogo from '../../../assets/diylirics-logo.webp';
 import panel from '../../shared/panel/Panel.module.scss';
+import { ConfirmDialog } from '../confirm/ConfirmDialog';
 import { ExportBlockingOverlay } from '../export/ExportBlockingOverlay';
+import { resetApplicationSession } from '../../../storage/sessionPersistence';
 import styles from './WorkflowHeader.module.scss';
 
 const STEP_LABELS: Record<AppTab, string> = {
@@ -36,12 +38,15 @@ export const WorkflowHeader = () => {
   const lines = useSessionStore((s) => s.lines);
   const lyricsEndTimeSec = useSessionStore((s) => s.lyricsEndTimeSec);
   const videoSettings = useSessionStore((s) => s.videoSettings);
+  const requestPlaybackPause = useSessionStore((s) => s.requestPlaybackPause);
 
   const [showExportOverlay, setShowExportOverlay] = useState(false);
   const [exportInProgress, setExportInProgress] = useState(false);
   const [exportFinished, setExportFinished] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetInProgress, setResetInProgress] = useState(false);
 
   const nextTab = NEXT_TAB[activeTab];
 
@@ -80,6 +85,8 @@ export const WorkflowHeader = () => {
       return;
     }
 
+    requestPlaybackPause();
+
     setExportError(null);
     setShowExportOverlay(true);
     setExportInProgress(true);
@@ -115,11 +122,55 @@ export const WorkflowHeader = () => {
     }
   };
 
+  const handleOpenResetConfirm = () => {
+    if (exportInProgress || resetInProgress) {
+      return;
+    }
+    setShowResetConfirm(true);
+  };
+
+  const handleCloseResetConfirm = () => {
+    if (resetInProgress) {
+      return;
+    }
+    setShowResetConfirm(false);
+  };
+
+  const handleConfirmReset = async () => {
+    if (resetInProgress) {
+      return;
+    }
+
+    requestPlaybackPause();
+    setResetInProgress(true);
+
+    try {
+      await resetApplicationSession();
+      setExportError(null);
+      setShowResetConfirm(false);
+    } finally {
+      setResetInProgress(false);
+    }
+  };
+
   const nextLabel = nextTab ? `Next: ${STEP_LABELS[nextTab]}` : null;
   const exportPercent = Math.round(exportProgress * 100);
 
   return (
     <>
+      {showResetConfirm ? (
+        <ConfirmDialog
+          title="Reset session?"
+          description="This clears audio, lyrics, cover art, video settings, and saved files in this browser. You cannot undo this."
+          confirmLabel={resetInProgress ? 'Resetting…' : 'Reset session'}
+          cancelLabel="Cancel"
+          isConfirmBusy={resetInProgress}
+          onConfirm={() => {
+            void handleConfirmReset();
+          }}
+          onCancel={handleCloseResetConfirm}
+        />
+      ) : null}
       {showExportOverlay ? (
         <ExportBlockingOverlay
           progressRatio={exportProgress}
@@ -130,7 +181,7 @@ export const WorkflowHeader = () => {
     <header
       className={styles.header}
       aria-label="Workflow"
-      aria-hidden={showExportOverlay}
+      aria-hidden={showExportOverlay || showResetConfirm}
     >
       <h1 className={styles.brand}>
         <img
@@ -182,6 +233,14 @@ export const WorkflowHeader = () => {
         {exportError ? (
           <p className={styles.exportError} role="alert">{exportError}</p>
         ) : null}
+        <button
+          type="button"
+          className={panel.button}
+          disabled={exportInProgress || resetInProgress}
+          onClick={handleOpenResetConfirm}
+        >
+          Reset session
+        </button>
         {activeTab === 'videomaker' ? (
           <button
             type="button"

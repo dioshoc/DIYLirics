@@ -79,6 +79,17 @@
       background: $color-accent-hover;
     }
   }
+
+  &[data-variant='danger'] {
+    background: rgb(220 72 88);
+    border-color: rgb(220 72 88);
+    color: #fff;
+
+    &:hover {
+      background: rgb(200 58 74);
+      border-color: rgb(200 58 74);
+    }
+  }
 }
 
 .metaBox {

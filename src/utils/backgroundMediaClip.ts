@@ -52,22 +52,57 @@ export const resolveBackgroundMediaPlaybackTimeSec = (
   return Math.min(offset, Math.max(0, mediaDurationSec - 0.001));
 };
 
+export const isTrackCoverBackdropVideoClipable = (
+  backgroundSource: string,
+  trackCoverBackdropSource: string,
+  kind: string | null,
+  file: File | null,
+): boolean =>
+  backgroundSource === 'track_cover' &&
+  trackCoverBackdropSource === 'custom_media' &&
+  kind === 'video' &&
+  Boolean(file);
+
 export const isBackgroundVideoClipable = (
   backgroundSource: string,
   kind: string | null,
   file: File | null,
-): boolean =>
-  backgroundSource === 'custom' && kind === 'video' && Boolean(file);
+  trackCoverBackdropSource = 'release_art',
+): boolean => {
+  if (backgroundSource === 'custom' && kind === 'video' && Boolean(file)) {
+    return true;
+  }
+  return isTrackCoverBackdropVideoClipable(
+    backgroundSource,
+    trackCoverBackdropSource,
+    kind,
+    file,
+  );
+};
 
 export const isBackgroundMediaClipable = (
   backgroundSource: string,
   kind: string | null,
   file: File | null,
+  trackCoverBackdropSource = 'release_art',
 ): boolean => {
-  if (isBackgroundVideoClipable(backgroundSource, kind, file)) {
+  if (
+    isBackgroundVideoClipable(
+      backgroundSource,
+      kind,
+      file,
+      trackCoverBackdropSource,
+    )
+  ) {
     return true;
   }
-  if (backgroundSource !== 'custom' || !kind || !file) {
+  const usesCustomMediaFile =
+    (backgroundSource === 'custom' ||
+      (backgroundSource === 'track_cover' &&
+        trackCoverBackdropSource === 'custom_media')) &&
+    Boolean(kind) &&
+    Boolean(file);
+  if (!usesCustomMediaFile || !file) {
     return false;
   }
   return file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');

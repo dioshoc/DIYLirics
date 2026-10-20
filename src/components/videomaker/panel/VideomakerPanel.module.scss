@@ -135,6 +135,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.coverSplitBg[data-backdrop='release-art'] .coverSplitBgImage {
   transform: scale(1.05);
   filter: blur(max(10px, 1cqmin));
 }

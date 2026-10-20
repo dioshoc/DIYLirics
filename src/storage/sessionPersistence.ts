@@ -25,11 +25,16 @@ import type {
   LyricVerticalAlign,
 } from '../constants/videoLyricLayout';
 import type { YoutubeCoverSide } from '../constants/youtubeCoverLayout';
-import { useSessionStore } from '../store/sessionStore';
+import {
+  buildFreshVideoSettings,
+  revokeSessionMediaUrls,
+  useSessionStore,
+} from '../store/sessionStore';
 import type {
   AppTab,
   LyricLine,
   TrackMeta,
+  TrackCoverBackdropSource,
   VideoBackgroundKind,
   VideoBackgroundSource,
   VideoSettings,
@@ -60,6 +65,7 @@ type PersistedSessionV1 = {
   videoSettings: {
     formatId: VideoFormatId;
     backgroundSource: VideoBackgroundSource;
+    trackCoverBackdropSource?: TrackCoverBackdropSource;
     youtubeCoverSide?: YoutubeCoverSide;
     tiktokCoverPosition?: TiktokCoverPosition;
     lyricVerticalAlign?: LyricVerticalAlign;
@@ -156,6 +162,7 @@ const buildVideoSettingsFromBlob = async (
   return {
     formatId: persisted.formatId,
     backgroundSource: persisted.backgroundSource,
+    trackCoverBackdropSource: persisted.trackCoverBackdropSource ?? 'release_art',
     youtubeCoverSide: persisted.youtubeCoverSide ?? 'right',
     tiktokCoverPosition: persisted.tiktokCoverPosition ?? 'top',
     lyricVerticalAlign: persisted.lyricVerticalAlign ?? 'center',
@@ -217,6 +224,7 @@ const persistState = async (): Promise<void> => {
     videoSettings: {
       formatId: state.videoSettings.formatId,
       backgroundSource: state.videoSettings.backgroundSource,
+      trackCoverBackdropSource: state.videoSettings.trackCoverBackdropSource,
       youtubeCoverSide: state.videoSettings.youtubeCoverSide,
       tiktokCoverPosition: state.videoSettings.tiktokCoverPosition,
       lyricVerticalAlign: state.videoSettings.lyricVerticalAlign,
@@ -255,6 +263,43 @@ const schedulePersist = (): void => {
   saveTimer = setTimeout(() => {
     void persistState();
   }, 400);
+};
+
+export const resetApplicationSession = async (): Promise<void> => {
+  persistencePaused = true;
+
+  try {
+    const state = useSessionStore.getState();
+    revokeSessionMediaUrls(state.track, state.videoSettings);
+
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    await Promise.all([
+      deleteSessionBlob('audio'),
+      deleteSessionBlob('cover'),
+      deleteSessionBlob('customBackground'),
+    ]);
+
+    useSessionStore.setState({
+      activeTab: 'options',
+      track: {
+        title: '',
+        artist: '',
+        audioFile: null,
+        audioObjectUrl: null,
+        coverFile: null,
+        coverObjectUrl: null,
+        durationSec: null,
+      },
+      lyricsRawText: '',
+      lines: [],
+      syncCursor: 0,
+      lyricsEndTimeSec: null,
+      videoSettings: buildFreshVideoSettings(),
+      playbackPauseSignal: state.playbackPauseSignal + 1,
+    });
+  } finally {
+    persistencePaused = false;
+  }
 };
 
 export const restoreSessionFromStorage = async (): Promise<boolean> => {

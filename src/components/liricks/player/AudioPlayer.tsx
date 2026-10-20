@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAudioWaveformPeaks } from '../../../hooks/useAudioWaveformPeaks';
+import { useSessionStore } from '../../../store/sessionStore';
 import { ClipRangeTimeline } from '../../shared/waveform/ClipRangeTimeline';
 import { SimpleWaveformSeek } from '../../shared/waveform/SimpleWaveformSeek';
 import { formatTimeSec } from '../../../utils/time';
@@ -47,6 +48,7 @@ export const AudioPlayer = ({
 }: AudioPlayerProps) => {
   const internalRef = useRef<HTMLAudioElement>(null);
   const audioRef = audioRefExternal ?? internalRef;
+  const playbackPauseSignal = useSessionStore((s) => s.playbackPauseSignal);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSec, setCurrentSec] = useState(0);
   const [durationSec, setDurationSec] = useState<number | null>(null);
@@ -71,6 +73,19 @@ export const AudioPlayer = ({
     onPlayingChange?.(false);
     onTimeUpdate?.(0);
   }, [onPlayingChange, onTimeUpdate, src]);
+
+  useEffect(() => {
+    if (playbackPauseSignal === 0) {
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+    }
+    setIsPlaying(false);
+    onPlayingChange?.(false);
+  }, [audioRef, onPlayingChange, playbackPauseSignal]);
 
   const seekTo = useCallback(
     (timeSec: number) => {

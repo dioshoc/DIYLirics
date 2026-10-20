@@ -8,7 +8,11 @@ import { probeBackgroundMediaDurationSec } from '../../../utils/probeBackgroundM
 
 import { useSessionStore } from '../../../store/sessionStore';
 import { buildLyricsProject } from '../../../utils/exportProject';
-import { resolveVideoBackground } from '../../../utils/videoBackground';
+import {
+  isTrackCoverCustomMediaBackdrop,
+  resolveTrackCoverBackdrop,
+  resolveVideoBackground,
+} from '../../../utils/videoBackground';
 import { AudioPlayer } from '../../liricks/player/AudioPlayer';
 import panel from '../../shared/panel/Panel.module.scss';
 import { TikTokSocialOverlay } from '../overlay/TikTokSocialOverlay';
@@ -55,6 +59,12 @@ export const VideomakerPanel = () => {
   const setCustomBackgroundFile = useSessionStore(
     (s) => s.setCustomBackgroundFile,
   );
+  const setTrackCoverBackdropSource = useSessionStore(
+    (s) => s.setTrackCoverBackdropSource,
+  );
+  const setTrackCoverBackdropFile = useSessionStore(
+    (s) => s.setTrackCoverBackdropFile,
+  );
   const setCustomBackgroundMediaClipWindow = useSessionStore(
     (s) => s.setCustomBackgroundMediaClipWindow,
   );
@@ -85,6 +95,7 @@ export const VideomakerPanel = () => {
         videoSettings.backgroundSource,
         videoSettings.customBackgroundKind,
         file,
+        videoSettings.trackCoverBackdropSource,
       )
     ) {
       return;
@@ -100,6 +111,7 @@ export const VideomakerPanel = () => {
     videoSettings.customBackgroundFile,
     videoSettings.customBackgroundKind,
     videoSettings.customBackgroundObjectUrl,
+    videoSettings.trackCoverBackdropSource,
   ]);
 
   const clipConfig = useMemo(() => {
@@ -137,6 +149,11 @@ export const VideomakerPanel = () => {
     [track, videoSettings],
   );
 
+  const trackCoverBackdrop = useMemo(
+    () => resolveTrackCoverBackdrop(track, videoSettings),
+    [track, videoSettings],
+  );
+
   const backgroundPlaybackTimeSec = useMemo(() => {
     const file = videoSettings.customBackgroundFile;
     if (
@@ -144,6 +161,7 @@ export const VideomakerPanel = () => {
         videoSettings.backgroundSource,
         videoSettings.customBackgroundKind,
         file,
+        videoSettings.trackCoverBackdropSource,
       )
     ) {
       return undefined;
@@ -166,6 +184,7 @@ export const VideomakerPanel = () => {
     videoSettings.customBackgroundDurationSec,
     videoSettings.customBackgroundFile,
     videoSettings.customBackgroundKind,
+    videoSettings.trackCoverBackdropSource,
   ]);
 
   const mediaClipConfig = useMemo(() => {
@@ -180,6 +199,7 @@ export const VideomakerPanel = () => {
         videoSettings.backgroundSource,
         videoSettings.customBackgroundKind,
         file,
+        videoSettings.trackCoverBackdropSource,
       )
     ) {
       return null;
@@ -203,17 +223,16 @@ export const VideomakerPanel = () => {
     videoSettings.customBackgroundDurationSec,
     videoSettings.customBackgroundFile,
     videoSettings.customBackgroundKind,
+    videoSettings.trackCoverBackdropSource,
   ]);
   const isTrackCoverLayout =
     videoSettings.backgroundSource === 'track_cover' &&
     Boolean(track.coverObjectUrl);
   const handleClearCustom = () => {
     setCustomBackgroundFile(null);
-    if (track.coverObjectUrl) {
-      setVideoBackgroundSource('track_cover');
-      return;
-    }
-    setVideoBackgroundSource('custom');
+  };
+  const handleClearTrackCoverBackdrop = () => {
+    setTrackCoverBackdropFile(null);
   };
 
   if (syncedCount === 0) {
@@ -241,11 +260,25 @@ export const VideomakerPanel = () => {
           />
           <VideoBackgroundPicker
             selectedSource={videoSettings.backgroundSource}
+            trackCoverBackdropSource={videoSettings.trackCoverBackdropSource}
             hasTrackCover={Boolean(track.coverObjectUrl)}
-            customFileName={videoSettings.customBackgroundFile?.name ?? null}
+            customFileName={
+              videoSettings.backgroundSource === 'custom'
+                ? (videoSettings.customBackgroundFile?.name ?? null)
+                : null
+            }
+            trackCoverBackdropFileName={
+              videoSettings.backgroundSource === 'track_cover' &&
+              videoSettings.trackCoverBackdropSource === 'custom_media'
+                ? (videoSettings.customBackgroundFile?.name ?? null)
+                : null
+            }
             onSelectSource={setVideoBackgroundSource}
+            onTrackCoverBackdropSourceChange={setTrackCoverBackdropSource}
             onCustomFileChange={setCustomBackgroundFile}
+            onTrackCoverBackdropFileChange={setTrackCoverBackdropFile}
             onClearCustom={handleClearCustom}
+            onClearTrackCoverBackdrop={handleClearTrackCoverBackdrop}
           />
           {isTrackCoverLayout ? (
             <TrackInfoUnderCoverPicker
@@ -304,6 +337,10 @@ export const VideomakerPanel = () => {
                   backgroundSource={videoSettings.backgroundSource}
                   coverArtUrl={track.coverObjectUrl}
                   background={background}
+                  trackCoverBackdrop={trackCoverBackdrop}
+                  trackCoverBackdropIsCustomMedia={isTrackCoverCustomMediaBackdrop(
+                    videoSettings,
+                  )}
                   lines={project.lines}
                   lyricsEndTimeSec={lyricsEndTimeSec}
                   audioRef={audioRef}

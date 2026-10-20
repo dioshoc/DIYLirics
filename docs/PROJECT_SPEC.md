@@ -35,14 +35,14 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ [logo]    │  ① Options — ② Liricks — ③ Videomaker   │  Next / Download │
+│ [logo]    │  ① Options — ② Liricks — ③ Videomaker   │  Reset │ Next / Download │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Options / Liricks: контент по центру, max-width 1200px ($content-max) │
 │  Videomaker: на всю ширину (колонка настроек ~280px + preview)           │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Навигация:** верхний **WorkflowHeader** (`src/components/layout/WorkflowHeader.tsx`) — логотип слева, три шага (клик = смена `activeTab`), справа **Next: …** на Options/Liricks или **Download video** на Videomaker.
+- **Навигация:** верхний **WorkflowHeader** (`src/components/layout/header/WorkflowHeader.tsx`) — логотип слева, три шага (клик = смена `activeTab`), справа **Reset session** (модалка подтверждения) + **Next: …** на Options/Liricks или **Download video** на Videomaker.
 - Отдельного бокового сайдбара с табами **нет** (с 2026-10-04).
 - **Порядок шагов (gating):** логика в `src/utils/workflowReadiness.ts`. На следующий шаг и на заблокированные шаги в хедере нельзя перейти, пока не выполнен предыдущий:
   - **Liricks** — нужно загруженное **аудио** в Options (`track.audioObjectUrl`).
@@ -82,14 +82,16 @@
 | # | Действие пользователя | Результат в store |
 |---|------------------------|-------------------|
 | 1 | **Video format** | `formatId` (`youtube` \| `tiktok`) |
-| 2 | **Background** | `backgroundSource`, custom blob при необходимости |
+| 2 | **Background** | `backgroundSource`, `trackCoverBackdropSource` (backdrop за карточкой), custom blob при необходимости |
 | 3 | **Track info under cover** (только track cover + обложка) | `showTrackInfoUnderCover` |
 | 4 | **Cover layout** (только track cover + обложка) | `youtubeCoverSide`, `tiktokCoverPosition` |
 | 5 | **Lyric position**, **Lyric font**, **Lyric entrance**, **Lyric effects** | align, шрифт, анимация, визуальные эффекты |
 | 6 | Preview + нижний плеер | waveform-таймлайн, seek drag; для **TikTok** — выбор клипа 15–45 s на плеере (см. `VIDEOMaker.md`) |
 | 7 | **Download video** | офлайн MP4; TikTok — только выбранный клип; `ExportBlockingOverlay` до × / Escape |
 
-**Download video** требует: аудио, синхронизированные строки, доступный URL фона (`getVideoExportBlockers`).
+**Download video** требует: аудио, синхронизированные строки; фон — обложка в Options (track cover) или custom file (`getVideoExportBlockers`). Перед экспортом воспроизведение **ставится на паузу**.
+
+**Reset session** (в header на всех шагах): подтверждение → очистка store + `localStorage` + IndexedDB (`resetApplicationSession`), вкладка **Options**.
 
 ### 2.2. UI: компонент `Section`
 
@@ -175,9 +177,12 @@ type VideoFormatId = 'youtube' | 'tiktok';
 
 type VideoBackgroundSource = 'track_cover' | 'custom';
 
+type TrackCoverBackdropSource = 'release_art' | 'custom_media';
+
 type VideoSettings = {
   formatId: VideoFormatId;
   backgroundSource: VideoBackgroundSource;
+  trackCoverBackdropSource: TrackCoverBackdropSource; // backdrop за карточкой в track cover
   youtubeCoverSide: 'left' | 'right';
   tiktokCoverPosition: 'top' | 'bottom';
   lyricVerticalAlign: 'top' | 'center' | 'bottom';
@@ -308,7 +313,7 @@ type VideoSettings = {
 ### 6.1. Настройки (колонка слева)
 
 - **Video format** — YouTube 16:9 / TikTok 9:16.
-- **Background** — track cover или custom image/video; input файла custom — только при `backgroundSource === 'custom'`.
+- **Background** — **Track cover** (карточка = обложка Options; backdrop: release art или custom image/video) или **Custom media** (full-bleed). File input full custom — только при `backgroundSource === 'custom'`; backdrop за карточкой — `setTrackCoverBackdropFile` при track cover + **Custom media** (см. [VIDEOMaker.md](./VIDEOMaker.md) §Background).
 - **Track info under cover** — Show/Hide подписи `Artist — Title` под карточкой обложки (cover-split); в MP4 при Show. Default: **Hide**. См. [VIDEOMaker.md](./VIDEOMaker.md) §Track info.
 - **Cover layout** (YouTube side / TikTok position) и **Track info** в сайдбаре показываются **только** при `backgroundSource === 'track_cover'` и загруженной обложке в Options. При **Custom media** эти блоки скрыты (`isTrackCoverLayout` в `VideomakerPanel`).
 - **TikTok social overlay** — CSS `TikTokSocialOverlay` **вне** `[data-videomaker-export-root]`; в MP4 не входит. PNG-мок приложения (рамка телефона / tab bar assets) **не используется** (откат) — см. [VIDEOMaker.md](./VIDEOMaker.md) §TikTok: кадр, обложка и UI preview.
@@ -328,11 +333,12 @@ type VideoSettings = {
 
 ### 6.3. Экспорт MP4 (реализовано)
 
-- Кнопка **Download video** в WorkflowHeader (только шаг Videomaker).
+- Кнопки **Reset session** (все шаги, `ConfirmDialog`) и **Download video** (только Videomaker) в WorkflowHeader.
 - **Офлайн-рендер:** Canvas 2D (`src/utils/videoExport/drawFrame.ts`) + **mediabunny** → **H.264 + AAC**, файл **`.mp4`** (не WebM).
 - Кадры: **60 fps**; **YouTube** — до `lyricsEndTimeSec` или длительности аудио; **TikTok** — отрезок `[tiktokClipStartSec, tiktokClipStartSec + tiktokClipDurationSec]` на полном файле (`resolveTiktokExportWindow`, `sliceAudioBuffer`). Имя файла — **Song title** из Options. Фоновое video: `seekBackgroundVideo` на каждый кадр (см. VIDEOMaker.md §Экспорт MP4).
 - Зависимость: `mediabunny` + WebCodecs (H.264/AAC) в браузере.
-- Блокеры: нет аудио, нет синхронизированных строк, нет URL фона (`getVideoExportBlockers`).
+- Блокеры: нет аудио, нет синхронизированных строк; для track cover — нет обложки; для custom — нет файла фона (`getVideoExportBlockers`).
+- Перед стартом export: `requestPlaybackPause` (пауза `AudioPlayer` и preview video bg).
 - **UI во время экспорта:** полноэкранный **`ExportBlockingOverlay`** (`src/components/layout/export/ExportBlockingOverlay.tsx`) — portal на `document.body`, прогресс %, `body { overflow: hidden }`, на `[data-app-shell]` атрибут **`inert`**. Тексты оверлея на английском.
   - **Фазы:** во время кодирования — спиннер, «Exporting video», progress bar; после успешного скачивания оверлей **остаётся открытым** — «Download ready», 100%, галочка; закрытие только кнопкой **×** в углу карточки или **Escape** (`WorkflowHeader`: `showExportOverlay`, `exportFinished`).
   - **Поддержка проекта** (внизу карточки, видна и во время экспорта, и после): две карточки в сетке — **Boosty** (QR + ссылка) и **Band.link** (QR + ссылка). URL: `src/constants/projectSupport.ts`; QR: `src/assets/boosty-donate-qr.png`, `src/assets/band-link-qr.png`.
@@ -484,5 +490,7 @@ docs/
 | 2026-10-16 | **Структура `components/`:** подпапки `layout/*`, `liricks/*`, `options/panel`, `shared/*`, `videomaker/*` (см. §8). |
 | 2026-10-16 | **Videomaker:** `showTrackInfoUnderCover` — подпись Artist — Title под обложкой (preview + MP4); **Cover layout** / track info только при track cover. |
 | 2026-10-16 | **Lyric entrance:** убраны пресеты slide left/right, spin in, drift, flicker; **No animation** — плитка с иконкой ban; выход строки 0.45 s; preview через `useAudioDrivenTimeSec` (rAF). |
+| 2026-10-20 | **Videomaker:** track cover — custom **backdrop** за карточкой (`trackCoverBackdropSource`); custom backdrop без blur/scale; release art — blur + scale. |
+| 2026-10-20 | **WorkflowHeader:** **Reset session** с подтверждением; пауза плеера при **Download video** (`playbackPauseSignal`). |
 
-*Документ версии 2.13 — база для генерации кода агентом и разработчиком.*
+*Документ версии 2.14 — база для генерации кода агентом и разработчиком.*

@@ -11,7 +11,10 @@ import {
 
 import { getVideoFormat } from '../../constants/videoFormats';
 import type { LyricsProject, TrackMeta, VideoSettings } from '../../types/session';
-import type { ResolvedVideoBackground } from '../videoBackground';
+import {
+  resolveTrackCoverBackdrop,
+  type ResolvedVideoBackground,
+} from '../videoBackground';
 import { resolveTiktokExportWindow } from '../tiktokExportWindow';
 import { decodeAudioFromUrl, sliceAudioBuffer } from './decodeAudio';
 import { ensureLyricFontLoaded } from './ensureLyricFontLoaded';
@@ -70,8 +73,15 @@ export const exportLyricVideo = async (
     throw new Error('Upload audio in Options first.');
   }
 
-  if (!input.background.url) {
+  if (input.videoSettings.backgroundSource === 'custom' && !input.background.url) {
     throw new Error('Choose a video background first.');
+  }
+
+  if (
+    input.videoSettings.backgroundSource === 'track_cover' &&
+    !input.track.coverObjectUrl
+  ) {
+    throw new Error('Upload cover art in Options first.');
   }
 
   const format = getVideoFormat(input.videoSettings.formatId);
@@ -90,9 +100,15 @@ export const exportLyricVideo = async (
     );
   }
 
+  const coverSplitBackdrop =
+    input.videoSettings.backgroundSource === 'track_cover'
+      ? resolveTrackCoverBackdrop(input.track, input.videoSettings)
+      : null;
+
   const assets = await loadExportMediaAssets(
     input.track.coverObjectUrl,
     input.background,
+    coverSplitBackdrop,
   );
 
   const decodedAudio = await decodeAudioFromUrl(audioUrl);

@@ -126,9 +126,6 @@ export const ExportBlockingOverlay = ({
               <h2 id="export-boosty-title" className={styles.supportCardTitle}>
                 Boosty
               </h2>
-              <p className={styles.supportCardHint}>
-                Scan or tap to donate while the export runs.
-              </p>
               <a
                 className={panel.button}
                 data-variant="primary"
@@ -153,11 +150,8 @@ export const ExportBlockingOverlay = ({
                 decoding="async"
               />
               <h2 id="export-band-title" className={styles.supportCardTitle}>
-                Band.link
+                My Music 
               </h2>
-              <p className={styles.supportCardHint}>
-                Music by 4.3.11 — links to streaming platforms.
-              </p>
               <a
                 className={panel.button}
                 href={BAND_LINK_URL}

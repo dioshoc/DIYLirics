@@ -30,6 +30,7 @@ import type {
   LyricLine,
   LyricsProject,
   TrackMeta,
+  TrackCoverBackdropSource,
   VideoBackgroundSource,
   VideoSettings,
 } from '../types/session';
@@ -54,7 +55,10 @@ type SessionState = {
   syncCursor: number;
   lyricsEndTimeSec: number | null;
   videoSettings: VideoSettings;
+  /** Incremented to pause any mounted AudioPlayer (e.g. before video export). */
+  playbackPauseSignal: number;
   setActiveTab: (tab: AppTab) => void;
+  requestPlaybackPause: () => void;
   setTitle: (title: string) => void;
   setArtist: (artist: string) => void;
   setAudioFile: (file: File | null) => void;
@@ -84,6 +88,8 @@ type SessionState = {
   setLyricEffectColor: (color: LyricEffectColorSettings) => void;
   setShowTrackInfoUnderCover: (showTrackInfoUnderCover: boolean) => void;
   setCustomBackgroundFile: (file: File | null) => void;
+  setTrackCoverBackdropSource: (source: TrackCoverBackdropSource) => void;
+  setTrackCoverBackdropFile: (file: File | null) => void;
   setCustomBackgroundMediaClipWindow: (
     clipStartSec: number,
     clipDurationSec: number,
@@ -101,9 +107,25 @@ const initialTrack: TrackMeta = {
   durationSec: null,
 };
 
-const initialVideoSettings: VideoSettings = {
+export const revokeSessionMediaUrls = (
+  track: TrackMeta,
+  videoSettings: VideoSettings,
+): void => {
+  if (track.audioObjectUrl) {
+    URL.revokeObjectURL(track.audioObjectUrl);
+  }
+  if (track.coverObjectUrl) {
+    URL.revokeObjectURL(track.coverObjectUrl);
+  }
+  if (videoSettings.customBackgroundObjectUrl) {
+    URL.revokeObjectURL(videoSettings.customBackgroundObjectUrl);
+  }
+};
+
+export const buildFreshVideoSettings = (): VideoSettings => ({
   formatId: 'youtube',
   backgroundSource: 'track_cover',
+  trackCoverBackdropSource: 'release_art',
   youtubeCoverSide: 'right',
   tiktokCoverPosition: 'top',
   lyricVerticalAlign: 'center',
@@ -122,7 +144,9 @@ const initialVideoSettings: VideoSettings = {
   customBackgroundDurationSec: null,
   customBackgroundClipStartSec: 0,
   customBackgroundClipDurationSec: 0,
-};
+});
+
+const initialVideoSettings: VideoSettings = buildFreshVideoSettings();
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   activeTab: 'options',
@@ -132,6 +156,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   syncCursor: 0,
   lyricsEndTimeSec: null,
   videoSettings: initialVideoSettings,
+  playbackPauseSignal: 0,
+
+  requestPlaybackPause: () =>
+    set((state) => ({
+      playbackPauseSignal: state.playbackPauseSignal + 1,
+    })),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -501,6 +531,82 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       videoSettings: {
         ...state.videoSettings,
         backgroundSource: 'custom',
+        customBackgroundFile: file,
+        customBackgroundObjectUrl: objectUrl,
+        customBackgroundKind: kind,
+        customBackgroundDurationSec: null,
+        customBackgroundClipStartSec: 0,
+        customBackgroundClipDurationSec: 0,
+      },
+    }));
+
+    void probeBackgroundMediaDurationSec(file, objectUrl).then((durationSec) => {
+      set((state) => {
+        if (state.videoSettings.customBackgroundObjectUrl !== objectUrl) {
+          return state;
+        }
+        const timelineDurationSec =
+          state.track.durationSec ?? durationSec;
+        const defaultClipDuration = getDefaultBackgroundMediaClipDurationSec(
+          timelineDurationSec,
+          durationSec,
+        );
+        const clamped = clampBackgroundMediaClipSettings(
+          timelineDurationSec,
+          durationSec,
+          defaultClipDuration,
+          0,
+        );
+        return {
+          videoSettings: {
+            ...state.videoSettings,
+            customBackgroundDurationSec: durationSec,
+            customBackgroundClipStartSec: clamped.clipStartSec,
+            customBackgroundClipDurationSec: clamped.clipDurationSec,
+          },
+        };
+      });
+    });
+  },
+
+  setTrackCoverBackdropSource: (trackCoverBackdropSource) =>
+    set((state) => ({
+      videoSettings: { ...state.videoSettings, trackCoverBackdropSource },
+    })),
+
+  setTrackCoverBackdropFile: (file) => {
+    const prevUrl = get().videoSettings.customBackgroundObjectUrl;
+    if (prevUrl) {
+      URL.revokeObjectURL(prevUrl);
+    }
+
+    if (!file) {
+      set((state) => ({
+        videoSettings: {
+          ...state.videoSettings,
+          trackCoverBackdropSource: 'release_art',
+          customBackgroundFile: null,
+          customBackgroundObjectUrl: null,
+          customBackgroundKind: null,
+          customBackgroundDurationSec: null,
+          customBackgroundClipStartSec: 0,
+          customBackgroundClipDurationSec: 0,
+        },
+      }));
+      return;
+    }
+
+    const kind = getCustomBackgroundKind(file);
+    if (!kind) {
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    set((state) => ({
+      videoSettings: {
+        ...state.videoSettings,
+        trackCoverBackdropSource: 'custom_media',
         customBackgroundFile: file,
         customBackgroundObjectUrl: objectUrl,
         customBackgroundKind: kind,

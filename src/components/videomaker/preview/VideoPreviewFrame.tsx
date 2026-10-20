@@ -17,6 +17,7 @@ import type { LyricVisualEffects } from '../../../constants/videoLyricEffects';
 import { LyricEffectBackgroundTint } from './LyricEffectBackgroundTint';
 import { formatTrackInfoLabel } from '../../../utils/formatTrackInfoLabel';
 import { AnimatedPreviewLyric } from './AnimatedPreviewLyric';
+import { CoverSplitBackdrop } from './CoverSplitBackdrop';
 import { VideoPreviewBackground } from './VideoPreviewBackground';
 import styles from '../panel/VideomakerPanel.module.scss';
 
@@ -25,6 +26,8 @@ type VideoPreviewFrameProps = {
   backgroundSource: VideoBackgroundSource;
   coverArtUrl: string | null;
   background: ResolvedVideoBackground;
+  trackCoverBackdrop: ResolvedVideoBackground;
+  trackCoverBackdropIsCustomMedia: boolean;
   lines: LyricsProject['lines'];
   lyricsEndTimeSec: number | null;
   audioRef: RefObject<HTMLAudioElement | null>;
@@ -48,17 +51,16 @@ type VideoPreviewFrameProps = {
 const useCoverSplitLayout = (
   backgroundSource: VideoBackgroundSource,
   coverArtUrl: string | null,
-  background: ResolvedVideoBackground,
 ): boolean =>
-  backgroundSource === 'track_cover' &&
-  Boolean(coverArtUrl) &&
-  background.kind === 'image';
+  backgroundSource === 'track_cover' && Boolean(coverArtUrl);
 
 export const VideoPreviewFrame = ({
   formatId,
   backgroundSource,
   coverArtUrl,
   background,
+  trackCoverBackdrop,
+  trackCoverBackdropIsCustomMedia,
   lines,
   lyricsEndTimeSec,
   audioRef,
@@ -79,11 +81,7 @@ export const VideoPreviewFrame = ({
   showTrackInfoUnderCover,
 }: VideoPreviewFrameProps) => {
   const trackInfoLabel = formatTrackInfoLabel(artist, title);
-  const isCoverSplit = useCoverSplitLayout(
-    backgroundSource,
-    coverArtUrl,
-    background,
-  );
+  const isCoverSplit = useCoverSplitLayout(backgroundSource, coverArtUrl);
   const lyricElement = (className: string) => (
     <AnimatedPreviewLyric
       lines={lines}
@@ -125,11 +123,17 @@ export const VideoPreviewFrame = ({
         {...lyricLayoutProps}
         style={lyricFontStyle}
       >
-        <div className={styles.coverSplitBg} aria-hidden>
-          <img
-            className={styles.coverSplitBgImage}
-            src={coverArtUrl}
-            alt=""
+        <div
+          className={styles.coverSplitBg}
+          data-backdrop={
+            trackCoverBackdropIsCustomMedia ? 'custom' : 'release-art'
+          }
+          aria-hidden
+        >
+          <CoverSplitBackdrop
+            backdrop={trackCoverBackdrop}
+            playbackTimeSec={backgroundPlaybackTimeSec ?? playbackTimeSec}
+            isPlaybackActive={isPlaybackActive}
           />
           <div className={styles.coverSplitBgScrim} />
           <LyricEffectBackgroundTint
